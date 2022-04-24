@@ -1,13 +1,781 @@
+Z_FLAG :: 128 as u8
+N_FLAG :: 64 as u8
+H_FLAG :: 32 as u8
+C_FLAG :: 16 as u8
+
+// Boolean literals please!
+ture :: 1 == 1
+flase :: 0 == 1
+
 // Higher-level code
 fn main() {
-    bios := read_file("bios.bin")
+    bios :: read_file("bios.bin")
+    gb := new_gameboy(bios)
 
-    print(read_byte(bios, 202)) // Should print 'g' if you have a valid BIOS
+    sp := 0 as u16
+    pc := 0 as u16
 
-    free_slice(&mut bios)
+    while ture {
+        opcode :: read_gb_byte(&gb, pc)
+        counter := 0 as usize
+
+        if ture {
+            print("running opcode ")
+            print_byte(opcode)
+            print(" at address ")
+            print_word(pc as u16)
+            print("\n")
+        }
+
+
+        if opcode == hex("0E") {
+            // LD C, n
+            gb.c = read_gb_byte(&gb, pc + 1)
+            pc = pc + 2
+            counter = counter + 8
+        } else if opcode == hex("0A") {
+            // LD A, (BC)
+            gb.a = read_gb_byte(&gb, get_bc(&gb))
+            pc = pc + 1
+            counter = counter + 8
+        } else if opcode == hex("1A") {
+            // LD A, (DE)
+            gb.a = read_gb_byte(&gb, get_de(&gb))
+            pc = pc + 1
+            counter = counter + 8
+        } else if opcode == hex("7E") {
+            // LD A, (HL)
+            gb.a = read_gb_byte(&gb, get_hl(&gb))
+            pc = pc + 1
+            counter = counter + 8
+        } else if opcode == hex("FA") {
+            // LD A, (nn)
+            address :: read_gb_word(&gb, pc + 1)
+            gb.a = read_gb_byte(&gb, address)
+            pc = pc + 3
+            counter = counter + 16
+        } else if opcode == hex("3E") {
+            // LD A, #
+            gb.a = read_gb_byte(&gb, pc + 1)
+            pc = pc + 2
+            counter = counter + 8
+        } else if opcode == hex("E2") {
+            // LD (C), A
+            write_gb_byte(&gb, 65280 + gb.c as u16, gb.a)
+            pc = pc + 1
+            counter = counter + 8
+        } else if opcode == hex("E0") {
+            // LDH (n), A
+            val :: read_gb_byte(&gb, pc + 1)
+            write_gb_byte(&gb, 65280 + val as u16, gb.a)
+            pc = pc + 2
+            counter = counter + 12
+        } else if opcode == hex("F0") {
+            // LDH A, (n)
+            val :: read_gb_byte(&gb, pc + 1)
+            gb.a = read_gb_byte(&gb, 65280 + val as u16)
+            pc = pc + 2
+            counter = counter + 12
+        } else if opcode == hex("20") {
+            // JR NZ, n
+            if !gb.z_flag {
+                offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
+                pc = pc + offset
+            }
+            pc = pc + 2
+            counter = counter + 8
+        } else if opcode == hex("28") {
+            // JR Z, n
+            if gb.z_flag {
+                offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
+                pc = pc + offset
+            }
+            pc = pc + 2
+            counter = counter + 8
+        } else if opcode == hex("30") {
+            // JR NC, n
+            if !gb.c_flag {
+                offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
+                pc = pc + offset
+            }
+            pc = pc + 2
+            counter = counter + 8
+        } else if opcode == hex("38") {
+            // JR C, n
+            if gb.c_flag {
+                offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
+                pc = pc + offset
+            }
+            pc = pc + 2
+            counter = counter + 8
+        } else if opcode == hex("18") {
+            // JR n
+            offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
+            pc = pc + offset + 2
+            counter = counter + 8
+        } else if opcode == hex("CD") {
+            // CALL nn
+            sp = sp - 2
+            address :: read_gb_word(&gb, pc + 1)
+            write_gb_word(&gb, sp, pc + 3)
+            pc = address
+            counter = counter + 12
+        } else if opcode == hex("C9") {
+            address :: read_gb_word(&gb, sp)
+            sp = sp + 2
+            pc = address
+            counter = counter + 8
+        } else if opcode == hex("F5") {
+            // PUSH AF
+            sp = sp - 2
+            write_gb_word(&gb, sp, get_af(&gb))
+            pc = pc + 1
+            counter = counter + 16
+        } else if opcode == hex("C5") {
+            // PUSH BC
+            sp = sp - 2
+            write_gb_word(&gb, sp, get_bc(&gb))
+            pc = pc + 1
+            counter = counter + 16
+        } else if opcode == hex("D5") {
+            // PUSH DE
+            sp = sp - 2
+            write_gb_word(&gb, sp, get_de(&gb))
+            pc = pc + 1
+            counter = counter + 16
+        } else if opcode == hex("E5") {
+            // PUSH HL
+            sp = sp - 2
+            write_gb_word(&gb, sp, get_hl(&gb))
+            pc = pc + 1
+            counter = counter + 16
+        } else if opcode == hex("F1") {
+            // POP AF
+            val :: read_gb_word(&gb, sp)
+            sp = sp + 2
+            set_af(&mut gb, val)
+
+            pc = pc + 1
+            counter = counter + 12
+        } else if opcode == hex("C1") {
+            // POP BC
+            val :: read_gb_word(&gb, sp)
+            sp = sp + 2
+            set_bc(&mut gb, val)
+
+            pc = pc + 1
+            counter = counter + 12
+        } else if opcode == hex("D1") {
+            // POP DE
+            val :: read_gb_word(&gb, sp)
+            sp = sp + 2
+            set_de(&mut gb, val)
+
+            pc = pc + 1
+            counter = counter + 12
+        } else if opcode == hex("E1") {
+            // POP HL
+            val :: read_gb_word(&gb, sp)
+            sp = sp + 2
+            set_hl(&mut gb, val)
+
+            pc = pc + 1
+            counter = counter + 12
+        } else if opcode == hex("11") {
+            // LD DE, nn
+            set_de(&mut gb, read_gb_word(&gb, pc + 1))
+            pc = pc + 3
+            counter = counter + 12
+        } else if opcode == hex("21") {
+            // LD HL, nn
+            set_hl(&mut gb, read_gb_word(&gb, pc + 1))
+            pc = pc + 3
+            counter = counter + 12
+        } else if opcode == hex("31") {
+            // LD SP, nn
+            sp = read_gb_word(&gb, pc + 1)
+            pc = pc + 3
+            counter = counter + 12
+        } else if opcode == hex("AF") {
+            // XOR A
+            gb.a = xor(gb.a, gb.a)
+            gb.z_flag = gb.a == 0
+            gb.n_flag = flase
+            gb.h_flag = flase
+            gb.c_flag = flase
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("32") {
+            // LDD (HL), A
+            write_gb_byte(&gb, get_hl(&gb), gb.a)
+            set_hl(&mut gb, get_hl(&gb) - 1)
+            // TODO: flags?
+            pc = pc + 1
+            counter = counter + 8
+        } else if opcode == hex("22") {
+            // LDI (HL), A
+            write_gb_byte(&gb, get_hl(&gb), gb.a)
+            set_hl(&mut gb, get_hl(&gb) + 1)
+            // TODO: flags?
+            pc = pc + 1
+            counter = counter + 8
+        } else if opcode == hex("3C") {
+            // INC A
+            inc_instr(&mut gb, &mut gb.a)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("04") {
+            // INC B
+            inc_instr(&mut gb, &mut gb.b)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("0C") {
+            // INC C
+            inc_instr(&mut gb, &mut gb.c)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("14") {
+            // INC D
+            inc_instr(&mut gb, &mut gb.d)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("1C") {
+            // INC E
+            inc_instr(&mut gb, &mut gb.e)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("24") {
+            // INC H
+            inc_instr(&mut gb, &mut gb.h)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("2C") {
+            // INC L
+            inc_instr(&mut gb, &mut gb.l)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("34") {
+            // INC (HL)
+            val := read_gb_byte(&gb, get_hl(&gb))
+            inc_instr(&mut gb, &mut val)
+            write_gb_byte(&gb, get_hl(&gb), val)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("3D") {
+            // DEC A
+            dec_instr(&mut gb, &mut gb.a)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("05") {
+            // DEC B
+            dec_instr(&mut gb, &mut gb.b)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("0D") {
+            // DEC C
+            dec_instr(&mut gb, &mut gb.c)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("15") {
+            // DEC D
+            dec_instr(&mut gb, &mut gb.d)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("1D") {
+            // DEC E
+            dec_instr(&mut gb, &mut gb.e)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("25") {
+            // DEC H
+            dec_instr(&mut gb, &mut gb.h)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("2D") {
+            // DEC L
+            dec_instr(&mut gb, &mut gb.l)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("35") {
+            // DEC (HL)
+            val := read_gb_byte(&gb, get_hl(&gb))
+            dec_instr(&mut gb, &mut val)
+            write_gb_byte(&gb, get_hl(&gb), val)
+
+            pc = pc + 1
+            counter = counter + 12
+        } else if opcode == hex("BF") {
+            // CP A
+            cp_instr(&mut gb, gb.a)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("B8") {
+            // CP B
+            cp_instr(&mut gb, gb.b)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("B9") {
+            // CP C
+            cp_instr(&mut gb, gb.c)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("BA") {
+            // CP D
+            cp_instr(&mut gb, gb.d)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("BB") {
+            // CP E
+            cp_instr(&mut gb, gb.e)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("BC") {
+            // CP H
+            cp_instr(&mut gb, gb.h)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("BD") {
+            // CP L
+            cp_instr(&mut gb, gb.l)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("BE") {
+            // CP (HL)
+            val :: read_gb_byte(&gb, get_hl(&gb))
+            cp_instr(&mut gb, val)
+
+            pc = pc + 1
+            counter = counter + 8
+        } else if opcode == hex("FE") {
+            // CP (HL)
+            val :: read_gb_byte(&gb, pc + 1)
+            cp_instr(&mut gb, val)
+
+            pc = pc + 2
+            counter = counter + 8
+        } else if opcode == hex("03") {
+            // INC BC
+            set_bc(&mut gb, get_bc(&gb) + 1)
+            pc = pc + 1
+            counter = counter + 8
+        } else if opcode == hex("13") {
+            // INC DE
+            set_de(&mut gb, get_de(&gb) + 1)
+            pc = pc + 1
+            counter = counter + 8
+        } else if opcode == hex("23") {
+            // INC HL
+            set_hl(&mut gb, get_hl(&gb) + 1)
+            pc = pc + 1
+            counter = counter + 8
+        } else if opcode == hex("33") {
+            // INC SP
+            sp = sp + 1
+            pc = pc + 1
+            counter = counter + 8
+        } else if opcode == hex("06") {
+            // LD B, n
+            val :: read_gb_byte(&gb, pc + 1)
+            gb.b = val
+            pc = pc + 2
+            counter = counter + 8
+        } else if opcode == hex("0E") {
+            // LD C, n
+            val :: read_gb_byte(&gb, pc + 1)
+            gb.c = val
+            pc = pc + 2
+            counter = counter + 8
+        } else if opcode == hex("16") {
+            // LD D, n
+            val :: read_gb_byte(&gb, pc + 1)
+            gb.d = val
+            pc = pc + 2
+            counter = counter + 8
+        } else if opcode == hex("1E") {
+            // LD E, n
+            val :: read_gb_byte(&gb, pc + 1)
+            gb.e = val
+            pc = pc + 2
+            counter = counter + 8
+        } else if opcode == hex("26") {
+            // LD H, n
+            val :: read_gb_byte(&gb, pc + 1)
+            gb.h = val
+            pc = pc + 2
+            counter = counter + 8
+        } else if opcode == hex("2E") {
+            // LD L, n
+            val :: read_gb_byte(&gb, pc + 1)
+            gb.l = val
+            pc = pc + 2
+            counter = counter + 8
+        } else if opcode == hex("7F") {
+            // LD A, A
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("78") {
+            // LD A, B
+            gb.a = gb.b
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("79") {
+            // LD A, C
+            gb.a = gb.c
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("7A") {
+            // LD A, D
+            gb.a = gb.d
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("7B") {
+            // LD A, E
+            gb.a = gb.e
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("7C") {
+            // LD A, H
+            gb.a = gb.h
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("7D") {
+            // LD A, L
+            gb.a = gb.l
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("0A") {
+            // LD A, (BC)
+            gb.a = read_gb_byte(&gb, get_bc(&gb))
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("47") {
+            // LD B, A
+            gb.b = gb.a
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("4F") {
+            // LD C, A
+            gb.c = gb.a
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("57") {
+            // LD D, A
+            gb.d = gb.a
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("5F") {
+            // LD E, A
+            gb.e = gb.a
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("67") {
+            // LD H, A
+            gb.h = gb.a
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("6F") {
+            // LD L, A
+            gb.l = gb.a
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("02") {
+            // LD (BC), A
+            write_gb_byte(&gb, get_bc(&gb), gb.a)
+            pc = pc + 1
+            counter = counter + 8
+        } else if opcode == hex("12") {
+            // LD (DE), A
+            write_gb_byte(&gb, get_de(&gb), gb.a)
+            pc = pc + 1
+            counter = counter + 8
+        } else if opcode == hex("77") {
+            // LD (HL), A
+            write_gb_byte(&gb, get_hl(&gb), gb.a)
+            pc = pc + 1
+            counter = counter + 8
+        } else if opcode == hex("EA") {
+            // LD (nn), A
+            address :: read_gb_word(&gb, pc + 1)
+            write_gb_byte(&gb, address, gb.a)
+            pc = pc + 3
+            counter = counter + 16
+        } else if opcode == hex("17") {
+            // RL A
+            rl_instr(&mut gb, &mut gb.a)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("CB") {
+            // Extended opcodes
+            pc = pc + 1
+            opcode :: read_gb_byte(&gb, pc)
+            if opcode == hex("17") {
+                // RL A
+                rl_instr(&mut gb, &mut gb.a)
+
+                pc = pc + 1
+                counter = counter + 8
+            } else if opcode == hex("10") {
+                // RL B
+                rl_instr(&mut gb, &mut gb.b)
+
+                pc = pc + 1
+                counter = counter + 8
+            } else if opcode == hex("11") {
+                // RL C
+                rl_instr(&mut gb, &mut gb.c)
+
+                pc = pc + 1
+                counter = counter + 8
+            } else if opcode == hex("12") {
+                // RL D
+                rl_instr(&mut gb, &mut gb.d)
+
+                pc = pc + 1
+                counter = counter + 8
+            } else if opcode == hex("13") {
+                // RL E
+                rl_instr(&mut gb, &mut gb.e)
+
+                pc = pc + 1
+                counter = counter + 8
+            } else if opcode == hex("14") {
+                // RL H
+                rl_instr(&mut gb, &mut gb.h)
+
+                pc = pc + 1
+                counter = counter + 8
+            } else if opcode == hex("15") {
+                // RL L
+                rl_instr(&mut gb, &mut gb.l)
+
+                pc = pc + 1
+                counter = counter + 8
+            } else if opcode == hex("16") {
+                // RL (HL)
+                val := read_gb_byte(&gb, get_hl(&gb))
+                rl_instr(&mut gb, &mut val)
+                write_gb_byte(&gb, get_hl(&gb), val)
+
+                pc = pc + 1
+                counter = counter + 16
+            } else if (opcode & neg(hex("38"))) == hex("44") {
+                // BIT b, H
+                b :: (opcode / 16) & 7
+                // TODO: change precedence of equality operator so this isn't required
+                gb.z_flag = (gb.h & l_shift(1, b)) == 0
+                gb.n_flag = flase
+                gb.h_flag = ture
+                pc = pc + 1
+                counter = counter + 8
+            } else {
+                print("unrecognized extended opcode ")
+                print_byte(opcode)
+                print(" at address ")
+                print_word(pc as u16)
+                print("\n")
+                panic()
+            }
+        } else {
+            print("unrecognized opcode ")
+            print_byte(opcode)
+            print(" at address ")
+            print_word(pc as u16)
+            print("\n")
+
+            panic()
+        }
+    }
+
+    free_gameboy(&mut gb)
+}
+
+GameBoy :: struct {
+    a: u8
+    b: u8
+    c: u8
+    d: u8
+    e: u8
+    f: u8
+    h: u8
+    l: u8
+
+    z_flag: bool
+    n_flag: bool
+    h_flag: bool
+    c_flag: bool
+
+    memory: ByteSlice
+    bios: ByteSlice
+}
+
+fn new_gameboy(bios: ByteSlice) = GameBoy {
+    a: 0
+    b: 0
+    c: 0
+    d: 0
+    e: 0
+    f: 0
+    h: 0
+    l: 0
+    z_flag: flase
+    n_flag: flase
+    h_flag: flase
+    c_flag: flase
+    memory: new_slice(65536)
+    bios: bios
+}
+
+fn free_gameboy(gameboy: GameBoy *mut) {
+    free_slice(&mut (*gameboy).memory)
+    free_slice(&mut (*gameboy).bios)
+}
+
+fn read_gb_byte(gb: GameBoy*, address: u16): u8 {
+    if address < 256 {
+        read_byte((*gb).bios, address)
+    } else {
+        read_byte((*gb).memory, address)
+    }
+}
+
+fn read_gb_word(gb: GameBoy*, address: u16): u16 {
+    lo :: read_gb_byte(gb, address) as u16
+    hi :: read_gb_byte(gb, address + 1) as u16
+    
+    // In lieu of bit shifting :(
+    lo | (hi * 256)
+}
+
+fn write_gb_byte(gb: GameBoy*, address: u16, value: u8) {
+    if address < 256 {
+        write_byte((*gb).bios, address, value)
+    } else {
+        write_byte((*gb).memory, address, value)
+    }
+}
+
+fn write_gb_word(gb: GameBoy*, address: u16, value: u16) {
+    lo :: value as u8
+    hi :: (value / 256) as u8
+    write_gb_byte(gb, address, lo)
+    write_gb_byte(gb, address + 1, hi)
+}
+
+fn get_flags(gb: GameBoy*): u8 {
+    if (*gb).z_flag { Z_FLAG } else { 0 } |
+        if (*gb).n_flag { N_FLAG } else { 0 } |
+        if (*gb).h_flag { H_FLAG } else { 0 } |
+        if (*gb).c_flag { C_FLAG } else { 0 }
+}
+
+fn set_flags(gb: GameBoy *mut, val: u8) {
+    (*gb).z_flag = (val & Z_FLAG) != 0
+    (*gb).n_flag = (val & N_FLAG) != 0
+    (*gb).h_flag = (val & H_FLAG) != 0
+    (*gb).c_flag = (val & C_FLAG) != 0
+}
+
+fn get_af(gb: GameBoy*): u16 {
+    (*gb).a as u16 * 256 | get_flags(gb) as u16
+}
+
+fn set_af(gb: GameBoy *mut, val: u16) {
+    (*gb).a = (((val & 65280) / 256) as u8)
+    set_flags(gb, val as u8)
+}
+
+fn get_bc(gb: GameBoy*): u16 {
+    (*gb).b as u16 * 256 | (*gb).c as u16
+}
+
+fn set_bc(gb: GameBoy *mut, val: u16) {
+    (*gb).b = (((val & 65280) / 256) as u8)
+    (*gb).c = val as u8
+}
+
+fn get_de(gb: GameBoy*): u16 {
+    (*gb).d as u16 * 256 | (*gb).e as u16
+}
+
+fn set_de(gb: GameBoy *mut, val: u16) {
+    (*gb).d = (((val & 65280) / 256) as u8)
+    (*gb).e = val as u8
+}
+
+fn get_hl(gb: GameBoy*): u16 {
+    (*gb).h as u16 * 256 | (*gb).l as u16
+}
+
+fn set_hl(gb: GameBoy *mut, val: u16) {
+    (*gb).h = (((val & 65280) / 256) as u8)
+    (*gb).l = val as u8
 }
 
 
+fn rl_instr(gb: GameBoy *mut, register: u8 *mut) {
+    bit7 :: (*register & 128) != 0
+    carry :: (*gb).c_flag
+    *register = *register * 2
+    if carry {
+        *register = *register | 1
+    }
+    // TODO: fix this issue with parsing!
+    ((*gb).c_flag = bit7)
+
+    (*gb).z_flag = *register == 0
+    ((*gb).n_flag = flase)
+    (*gb).h_flag = flase
+}
+
+fn dec_instr(gb: GameBoy *mut, register: u8 *mut) {
+    (*gb).h_flag = ((*register & 15) - 1) <= 15 // TODO: Not sure if correct!
+
+    *register = *register - 1
+    (*gb).z_flag = *register == 0
+    (*gb).n_flag = ture
+}
+
+fn cp_instr(gb: GameBoy *mut, register: u8) {
+    a :: ((*gb).a)
+    (*gb).h_flag = ((a & 15) - register) <= 15 // TODO: Not sure if correct!
+
+    ((*gb).z_flag = a == register)
+    ((*gb).n_flag = ture)
+    (*gb).c_flag = a < register
+}
+
+fn inc_instr(gb: GameBoy *mut, register: u8 *mut) {
+    (*gb).h_flag = ((*register & 15) + 1) > 15 // TODO: Not sure if correct!
+
+    *register = *register + 1
+
+    (*gb).z_flag = *register == 0
+    (*gb).n_flag = flase
+}
 
 
 
@@ -17,6 +785,12 @@ fn main() {
 ByteSlice :: struct {
     size: usize
     data: u8 *mut
+}
+
+// COMPILER BUG: other code breaks if I remove this explicit type
+fn new_slice(size: usize): ByteSlice = ByteSlice {
+    size: size
+    data: malloc(size) as u8 *mut
 }
 
 fn read_file(path: i8*): ByteSlice {
@@ -53,8 +827,12 @@ fn read_file(path: i8*): ByteSlice {
     }
 }
 
-fn read_byte(slice: ByteSlice, index: usize): u8 {
-    *((slice.data as usize + index) as u8*)
+fn write_byte(slice: ByteSlice, index: u16, value: u8) {
+    *((slice.data as usize + index as usize) as u8 *mut) = value
+}
+
+fn read_byte(slice: ByteSlice, index: u16): u8 {
+    *((slice.data as usize + index as usize) as u8*)
 }
 
 fn free_slice(slice: ByteSlice *mut) {
@@ -63,11 +841,101 @@ fn free_slice(slice: ByteSlice *mut) {
     (*slice).size = 0
 }
 
+fn print_num(num: i32) {
+    num := num
+    if num < 0 {
+        print("-")
+        num = -num
+    }
+    if num >= 10 {
+        print_num(num / 10)
+    }
+    print((num % 10) as u8 + "0")
+}
+
+fn print_byte_recurse(num: u8, count: u8) {
+    num := num
+    if count < 1 {
+        print_byte_recurse(num / 16, count + 1)
+    }
+    num = num % 16
+    if num >= 10 {
+        print(num as u8 - 10 + "A")
+    } else {
+        print(num as u8 + "0")
+    }
+}
+
+fn print_byte(num: u8) {
+    print("0x")
+    print_byte_recurse(num, 0)
+}
+
+fn print_word(num: u16) {
+    print("0x")
+    print_byte_recurse((num / 256) as u8, 0)
+    print_byte_recurse(num as u8, 0)
+}
+
+fn hex(num: u8*): u8 {
+    cur := num
+    val := 0 as u8
+    while *cur != 0 {
+        digit := *cur
+        if digit >= "0" && digit <= "9" {
+            digit = digit - "0"
+        } else if digit >= "a" && digit <= "f" {
+            digit = digit - "a" + 10
+        } else if digit >= "A" && digit <= "F" {
+            digit = digit - "A" + 10
+        } else {
+            print("unrecognized character in hex string: ")
+            print(digit)
+            print("\n")
+            panic()
+        }
+        // Left-shift by 4
+        val = val * 16
+        val = val | digit
+        cur = (cur as usize + 1) as u8*
+    }
+    val
+}
+
+fn xor(a: u8, b: u8): u8 {
+    // Thank you, stack overflow wizard. https://stackoverflow.com/questions/4715232/xor-from-only-or-and-and
+    (a | b) - (a & b)
+}
+
+fn neg(num: u8): u8 {
+    // This is stupid.
+    bit := 1 as u8
+    i := 0 as u8
+    val := 0 as u8
+    while i < 8 {
+        if (bit & num) == 0 {
+            val = val | bit
+        }
+        i = i + 1
+        bit = bit * 2
+    }
+    val
+}
+
+fn l_shift(num: u8, bits: u8): u8 {
+    i := 0 as u8
+    val := num
+    while i < bits {
+        val = val * 2
+        i = i + 1
+    }
+    val
+}
 
 
 
 
-// Ugly Windows FFI code. To be cleaned up later
+// Windows FFI code. To be cleaned up later
 
 HWND :: void *mut
 HANDLE :: void *mut
