@@ -1,0 +1,11 @@
+HWND :: void *mut
+
+MB_OK :: 0 as u32
+
+user32 :: extern_mod("user32.dll") {
+    fn MessageBoxA(hwnd: HWND, lpText: u8*, lpCaption: u8*, uType: u32): i32
+}
+
+fn main() {
+    ignore :: user32.MessageBoxA(0 as usize as HWND, "Welcome to PrettyBoy!", "PrettyBoy", MB_OK)
+}
