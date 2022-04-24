@@ -7,7 +7,9 @@ C_FLAG :: 16 as u8
 ture :: 1 == 1
 flase :: 0 == 1
 
-// Higher-level code
+CYCLES_PER_H_SYNC :: 456 as usize
+LINES_PER_FRAME :: 153 as u8
+
 fn main() {
     bios :: read_file("bios.bin")
     gb := new_gameboy(bios)
@@ -15,16 +17,41 @@ fn main() {
     sp := 0 as u16
     pc := 0 as u16
 
+    counter := 0 as usize
+    breakpoint :: 142 as u16
+    stepping := flase
     while ture {
+        if pc == breakpoint {
+            stepping = ture
+        }
         opcode :: read_gb_byte(&gb, pc)
-        counter := 0 as usize
-
-        if ture {
-            print("running opcode ")
+        if stepping {
+            stdin :: kernel32.GetStdHandle(STD_INPUT_HANDLE)
+            mychars := 0 as u64
+            chars_read := 0 as DWORD
+            print("about to run opcode ")
             print_byte(opcode)
             print(" at address ")
-            print_word(pc as u16)
+            print_word(pc)
             print("\n")
+            succ :: kernel32.ReadConsoleA(stdin, &mut mychars as void*mut, 8, &mut chars_read, NULL())
+            if mychars as u8 == "c" {
+                stepping = flase
+            }
+        }
+        if counter >= CYCLES_PER_H_SYNC {
+            gb.ly = gb.ly + 1
+            counter = counter - CYCLES_PER_H_SYNC
+        }
+        if gb.ly >= LINES_PER_FRAME {
+            gb.ly = gb.ly - LINES_PER_FRAME
+        }
+
+        if flase {
+            if pc >= 100 && pc <= 104 {
+
+            } else {
+            }
         }
 
 
@@ -280,11 +307,27 @@ fn main() {
             // DEC B
             dec_instr(&mut gb, &mut gb.b)
 
+            print("decremented B to ")
+            print_byte(gb.b)
+            print(", ")
+            if !gb.z_flag {
+                print("N")
+            }
+            print("Z\n")
+
             pc = pc + 1
             counter = counter + 4
         } else if opcode == hex("0D") {
             // DEC C
             dec_instr(&mut gb, &mut gb.c)
+
+            print("decremented C to ")
+            print_byte(gb.c)
+            print(", ")
+            if !gb.z_flag {
+                print("N")
+            }
+            print("Z\n")
 
             pc = pc + 1
             counter = counter + 4
@@ -292,11 +335,27 @@ fn main() {
             // DEC D
             dec_instr(&mut gb, &mut gb.d)
 
+            print("decremented D to ")
+            print_byte(gb.d)
+            print(", ")
+            if !gb.z_flag {
+                print("N")
+            }
+            print("Z\n")
+
             pc = pc + 1
             counter = counter + 4
         } else if opcode == hex("1D") {
             // DEC E
             dec_instr(&mut gb, &mut gb.e)
+
+            print("decremented E to ")
+            print_byte(gb.e)
+            print(", ")
+            if !gb.z_flag {
+                print("N")
+            }
+            print("Z\n")
 
             pc = pc + 1
             counter = counter + 4
@@ -370,9 +429,65 @@ fn main() {
             pc = pc + 1
             counter = counter + 8
         } else if opcode == hex("FE") {
-            // CP (HL)
+            // CP #
             val :: read_gb_byte(&gb, pc + 1)
             cp_instr(&mut gb, val)
+
+            pc = pc + 2
+            counter = counter + 8
+        } else if opcode == hex("97") {
+            // SUB A
+            sub_instr(&mut gb, gb.a)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("90") {
+            // SUB B
+            sub_instr(&mut gb, gb.b)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("91") {
+            // SUB C
+            sub_instr(&mut gb, gb.c)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("92") {
+            // SUB D
+            sub_instr(&mut gb, gb.d)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("93") {
+            // SUB E
+            sub_instr(&mut gb, gb.e)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("94") {
+            // SUB H
+            sub_instr(&mut gb, gb.h)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("95") {
+            // SUB L
+            sub_instr(&mut gb, gb.l)
+
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == hex("96") {
+            // SUB (HL)
+            val :: read_gb_byte(&gb, get_hl(&gb))
+            sub_instr(&mut gb, val)
+
+            pc = pc + 1
+            counter = counter + 8
+        } else if opcode == hex("D6") {
+            // SUB #
+            val :: read_gb_byte(&gb, pc + 1)
+            sub_instr(&mut gb, val)
 
             pc = pc + 2
             counter = counter + 8
@@ -628,6 +743,8 @@ GameBoy :: struct {
     h_flag: bool
     c_flag: bool
 
+    ly: u8
+
     memory: ByteSlice
     bios: ByteSlice
 }
@@ -641,10 +758,14 @@ fn new_gameboy(bios: ByteSlice) = GameBoy {
     f: 0
     h: 0
     l: 0
+
     z_flag: flase
     n_flag: flase
     h_flag: flase
     c_flag: flase
+
+    ly: 0
+
     memory: new_slice(65536)
     bios: bios
 }
@@ -654,9 +775,13 @@ fn free_gameboy(gameboy: GameBoy *mut) {
     free_slice(&mut (*gameboy).bios)
 }
 
+
+LY_REGISTER :: 65348 as u16
 fn read_gb_byte(gb: GameBoy*, address: u16): u8 {
     if address < 256 {
         read_byte((*gb).bios, address)
+    } else if address == LY_REGISTER {
+        (*gb).ly
     } else {
         read_byte((*gb).memory, address)
     }
@@ -757,6 +882,11 @@ fn dec_instr(gb: GameBoy *mut, register: u8 *mut) {
     *register = *register - 1
     (*gb).z_flag = *register == 0
     (*gb).n_flag = ture
+}
+
+fn sub_instr(gb: GameBoy *mut, register: u8) {
+    cp_instr(gb, register) // same flags
+    (*gb).a = (*gb).a - register
 }
 
 fn cp_instr(gb: GameBoy *mut, register: u8) {
@@ -977,6 +1107,7 @@ OVERLAPPED :: struct {}
 kernel32 :: extern_mod("kernel32.dll") {
     fn GetStdHandle(nStdHandle: DWORD): HANDLE
     fn WriteConsoleA(hConsoleOutput: HANDLE, lpBuffer: void*, nNumberOfCharsToWrite: DWORD, lpNumberOfCharsWritten: DWORD *mut, lpReserved: void *mut): BOOL
+    fn ReadConsoleA(hConsoleInput: HANDLE, lpBuffer: void *mut, nNumberOfCharsToRead: DWORD, lpNumberOfCharsRead: DWORD *mut, pInputControl: void *mut): BOOL
     fn CreateFileA(lpFileName: i8*, dwDesiredAccess: DWORD, dwShareMode: DWORD, lpSecurityAttributes: SECURITY_ATTRIBUTES *mut, dwCreationDisposition: DWORD, dwFlagsAndAttributes: DWORD, hTemplateFile: HANDLE): HANDLE
     fn CloseHandle(hObject: HANDLE): BOOL
     fn GetFileSizeEx(hFile: HANDLE, lpFileSize: u64 *mut): BOOL
