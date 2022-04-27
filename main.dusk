@@ -704,7 +704,7 @@ fn main() {
 
                 pc = pc + 1
                 counter = counter + 16
-            } else if (opcode & neg($38)) == $44 {
+            } else if (opcode & ~$38) == $44 {
                 // BIT b, H
                 b :: (opcode / 16) & 7
                 // TODO: change precedence of equality operator so this isn't required
@@ -1027,21 +1027,6 @@ fn xor(a: u8, b: u8): u8 {
     (a | b) - (a & b)
 }
 
-fn neg(num: u8): u8 {
-    // This is stupid.
-    bit := 1 as u8
-    i := 0 as u8
-    val := 0 as u8
-    while i < 8 {
-        if (bit & num) == 0 {
-            val = val | bit
-        }
-        i = i + 1
-        bit = bit * 2
-    }
-    val
-}
-
 fn l_shift(num: u8, bits: u8): u8 {
     i := 0 as u8
     val := num
@@ -1051,6 +1036,9 @@ fn l_shift(num: u8, bits: u8): u8 {
     }
     val
 }
+
+
+
 
 
 
