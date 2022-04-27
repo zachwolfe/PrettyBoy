@@ -3,10 +3,6 @@ N_FLAG :: 64 as u8
 H_FLAG :: 32 as u8
 C_FLAG :: 16 as u8
 
-// Boolean literals please!
-ture :: 1 == 1
-flase :: 0 == 1
-
 CYCLES_PER_H_SYNC :: 456 as usize
 LINES_PER_FRAME :: 153 as u8
 
@@ -19,10 +15,10 @@ fn main() {
 
     counter := 0 as usize
     breakpoint :: 142 as u16
-    stepping := flase
-    while ture {
+    stepping := false
+    while true {
         if pc == breakpoint {
-            stepping = ture
+            stepping = true
         }
         opcode :: read_gb_byte(&gb, pc)
         if stepping {
@@ -36,7 +32,7 @@ fn main() {
             print("\n")
             succ :: kernel32.ReadConsoleA(stdin, &mut mychars as void*mut, 8, &mut chars_read, NULL())
             if mychars as u8 == "c" {
-                stepping = flase
+                stepping = false
             }
         }
         if counter >= CYCLES_PER_H_SYNC {
@@ -47,7 +43,7 @@ fn main() {
             gb.ly = gb.ly - LINES_PER_FRAME
         }
 
-        if flase {
+        if false {
             if pc >= 100 && pc <= 104 {
 
             } else {
@@ -227,9 +223,9 @@ fn main() {
             // XOR A
             gb.a = xor(gb.a, gb.a)
             gb.z_flag = gb.a == 0
-            gb.n_flag = flase
-            gb.h_flag = flase
-            gb.c_flag = flase
+            gb.n_flag = false
+            gb.h_flag = false
+            gb.c_flag = false
 
             pc = pc + 1
             counter = counter + 4
@@ -702,8 +698,8 @@ fn main() {
                 b :: (opcode / 16) & 7
                 // TODO: change precedence of equality operator so this isn't required
                 gb.z_flag = (gb.h & l_shift(1, b)) == 0
-                gb.n_flag = flase
-                gb.h_flag = ture
+                gb.n_flag = false
+                gb.h_flag = true
                 pc = pc + 1
                 counter = counter + 8
             } else {
@@ -759,10 +755,10 @@ fn new_gameboy(bios: ByteSlice) = GameBoy {
     h: 0
     l: 0
 
-    z_flag: flase
-    n_flag: flase
-    h_flag: flase
-    c_flag: flase
+    z_flag: false
+    n_flag: false
+    h_flag: false
+    c_flag: false
 
     ly: 0
 
@@ -872,8 +868,8 @@ fn rl_instr(gb: GameBoy *mut, register: u8 *mut) {
     ((*gb).c_flag = bit7)
 
     (*gb).z_flag = *register == 0
-    ((*gb).n_flag = flase)
-    (*gb).h_flag = flase
+    ((*gb).n_flag = false)
+    (*gb).h_flag = false
 }
 
 fn dec_instr(gb: GameBoy *mut, register: u8 *mut) {
@@ -881,7 +877,7 @@ fn dec_instr(gb: GameBoy *mut, register: u8 *mut) {
 
     *register = *register - 1
     (*gb).z_flag = *register == 0
-    (*gb).n_flag = ture
+    (*gb).n_flag = true
 }
 
 fn sub_instr(gb: GameBoy *mut, register: u8) {
@@ -894,7 +890,7 @@ fn cp_instr(gb: GameBoy *mut, register: u8) {
     (*gb).h_flag = ((a & 15) - register) <= 15 // TODO: Not sure if correct!
 
     ((*gb).z_flag = a == register)
-    ((*gb).n_flag = ture)
+    ((*gb).n_flag = true)
     (*gb).c_flag = a < register
 }
 
@@ -904,7 +900,7 @@ fn inc_instr(gb: GameBoy *mut, register: u8 *mut) {
     *register = *register + 1
 
     (*gb).z_flag = *register == 0
-    (*gb).n_flag = flase
+    (*gb).n_flag = false
 }
 
 
