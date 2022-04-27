@@ -16,6 +16,14 @@ fn main() {
     counter := 0 as usize
     breakpoint :: 142 as u16
     stepping := false
+    last_time: u64 = 0
+    if kernel32.QueryPerformanceCounter(&mut last_time) == FALSE {
+        panic("unable to get performance counter")
+    }
+    timer_freq: u64 = 0
+    if kernel32.QueryPerformanceFrequency(&mut timer_freq) == FALSE {
+        panic("unable to get performance frequency")
+    }
     while true {
         if pc == breakpoint {
             stepping = true
@@ -39,67 +47,69 @@ fn main() {
             gb.ly = gb.ly + 1
             counter = counter - CYCLES_PER_H_SYNC
         }
+
         if gb.ly >= LINES_PER_FRAME {
             gb.ly = gb.ly - LINES_PER_FRAME
-        }
-
-        if false {
-            if pc >= 100 && pc <= 104 {
-
-            } else {
+            time: u64 = 0
+            if kernel32.QueryPerformanceCounter(&mut time) == FALSE {
+                panic("unable to get performance counter")
             }
+            diff := (time - last_time) / (timer_freq / 1000)
+            print("frame time: ~")
+            print_num(diff)
+            print("ms\n")
+            last_time = time
         }
 
-
-        if opcode == hex("0E") {
+        if opcode == $0E {
             // LD C, n
             gb.c = read_gb_byte(&gb, pc + 1)
             pc = pc + 2
             counter = counter + 8
-        } else if opcode == hex("0A") {
+        } else if opcode == $0A {
             // LD A, (BC)
             gb.a = read_gb_byte(&gb, get_bc(&gb))
             pc = pc + 1
             counter = counter + 8
-        } else if opcode == hex("1A") {
+        } else if opcode == $1A {
             // LD A, (DE)
             gb.a = read_gb_byte(&gb, get_de(&gb))
             pc = pc + 1
             counter = counter + 8
-        } else if opcode == hex("7E") {
+        } else if opcode == $7E {
             // LD A, (HL)
             gb.a = read_gb_byte(&gb, get_hl(&gb))
             pc = pc + 1
             counter = counter + 8
-        } else if opcode == hex("FA") {
+        } else if opcode == $FA {
             // LD A, (nn)
             address :: read_gb_word(&gb, pc + 1)
             gb.a = read_gb_byte(&gb, address)
             pc = pc + 3
             counter = counter + 16
-        } else if opcode == hex("3E") {
+        } else if opcode == $3E {
             // LD A, #
             gb.a = read_gb_byte(&gb, pc + 1)
             pc = pc + 2
             counter = counter + 8
-        } else if opcode == hex("E2") {
+        } else if opcode == $E2 {
             // LD (C), A
             write_gb_byte(&gb, 65280 + gb.c as u16, gb.a)
             pc = pc + 1
             counter = counter + 8
-        } else if opcode == hex("E0") {
+        } else if opcode == $E0 {
             // LDH (n), A
             val :: read_gb_byte(&gb, pc + 1)
             write_gb_byte(&gb, 65280 + val as u16, gb.a)
             pc = pc + 2
             counter = counter + 12
-        } else if opcode == hex("F0") {
+        } else if opcode == $F0 {
             // LDH A, (n)
             val :: read_gb_byte(&gb, pc + 1)
             gb.a = read_gb_byte(&gb, 65280 + val as u16)
             pc = pc + 2
             counter = counter + 12
-        } else if opcode == hex("20") {
+        } else if opcode == $20 {
             // JR NZ, n
             if !gb.z_flag {
                 offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
@@ -107,7 +117,7 @@ fn main() {
             }
             pc = pc + 2
             counter = counter + 8
-        } else if opcode == hex("28") {
+        } else if opcode == $28 {
             // JR Z, n
             if gb.z_flag {
                 offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
@@ -115,7 +125,7 @@ fn main() {
             }
             pc = pc + 2
             counter = counter + 8
-        } else if opcode == hex("30") {
+        } else if opcode == $30 {
             // JR NC, n
             if !gb.c_flag {
                 offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
@@ -123,7 +133,7 @@ fn main() {
             }
             pc = pc + 2
             counter = counter + 8
-        } else if opcode == hex("38") {
+        } else if opcode == $38 {
             // JR C, n
             if gb.c_flag {
                 offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
@@ -131,48 +141,48 @@ fn main() {
             }
             pc = pc + 2
             counter = counter + 8
-        } else if opcode == hex("18") {
+        } else if opcode == $18 {
             // JR n
             offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
             pc = pc + offset + 2
             counter = counter + 8
-        } else if opcode == hex("CD") {
+        } else if opcode == $CD {
             // CALL nn
             sp = sp - 2
             address :: read_gb_word(&gb, pc + 1)
             write_gb_word(&gb, sp, pc + 3)
             pc = address
             counter = counter + 12
-        } else if opcode == hex("C9") {
+        } else if opcode == $C9 {
             address :: read_gb_word(&gb, sp)
             sp = sp + 2
             pc = address
             counter = counter + 8
-        } else if opcode == hex("F5") {
+        } else if opcode == $F5 {
             // PUSH AF
             sp = sp - 2
             write_gb_word(&gb, sp, get_af(&gb))
             pc = pc + 1
             counter = counter + 16
-        } else if opcode == hex("C5") {
+        } else if opcode == $C5 {
             // PUSH BC
             sp = sp - 2
             write_gb_word(&gb, sp, get_bc(&gb))
             pc = pc + 1
             counter = counter + 16
-        } else if opcode == hex("D5") {
+        } else if opcode == $D5 {
             // PUSH DE
             sp = sp - 2
             write_gb_word(&gb, sp, get_de(&gb))
             pc = pc + 1
             counter = counter + 16
-        } else if opcode == hex("E5") {
+        } else if opcode == $E5 {
             // PUSH HL
             sp = sp - 2
             write_gb_word(&gb, sp, get_hl(&gb))
             pc = pc + 1
             counter = counter + 16
-        } else if opcode == hex("F1") {
+        } else if opcode == $F1 {
             // POP AF
             val :: read_gb_word(&gb, sp)
             sp = sp + 2
@@ -180,7 +190,7 @@ fn main() {
 
             pc = pc + 1
             counter = counter + 12
-        } else if opcode == hex("C1") {
+        } else if opcode == $C1 {
             // POP BC
             val :: read_gb_word(&gb, sp)
             sp = sp + 2
@@ -188,7 +198,7 @@ fn main() {
 
             pc = pc + 1
             counter = counter + 12
-        } else if opcode == hex("D1") {
+        } else if opcode == $D1 {
             // POP DE
             val :: read_gb_word(&gb, sp)
             sp = sp + 2
@@ -196,7 +206,7 @@ fn main() {
 
             pc = pc + 1
             counter = counter + 12
-        } else if opcode == hex("E1") {
+        } else if opcode == $E1 {
             // POP HL
             val :: read_gb_word(&gb, sp)
             sp = sp + 2
@@ -204,22 +214,22 @@ fn main() {
 
             pc = pc + 1
             counter = counter + 12
-        } else if opcode == hex("11") {
+        } else if opcode == $11 {
             // LD DE, nn
             set_de(&mut gb, read_gb_word(&gb, pc + 1))
             pc = pc + 3
             counter = counter + 12
-        } else if opcode == hex("21") {
+        } else if opcode == $21 {
             // LD HL, nn
             set_hl(&mut gb, read_gb_word(&gb, pc + 1))
             pc = pc + 3
             counter = counter + 12
-        } else if opcode == hex("31") {
+        } else if opcode == $31 {
             // LD SP, nn
             sp = read_gb_word(&gb, pc + 1)
             pc = pc + 3
             counter = counter + 12
-        } else if opcode == hex("AF") {
+        } else if opcode == $AF {
             // XOR A
             gb.a = xor(gb.a, gb.a)
             gb.z_flag = gb.a == 0
@@ -229,63 +239,63 @@ fn main() {
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("32") {
+        } else if opcode == $32 {
             // LDD (HL), A
             write_gb_byte(&gb, get_hl(&gb), gb.a)
             set_hl(&mut gb, get_hl(&gb) - 1)
             // TODO: flags?
             pc = pc + 1
             counter = counter + 8
-        } else if opcode == hex("22") {
+        } else if opcode == $22 {
             // LDI (HL), A
             write_gb_byte(&gb, get_hl(&gb), gb.a)
             set_hl(&mut gb, get_hl(&gb) + 1)
             // TODO: flags?
             pc = pc + 1
             counter = counter + 8
-        } else if opcode == hex("3C") {
+        } else if opcode == $3C {
             // INC A
             inc_instr(&mut gb, &mut gb.a)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("04") {
+        } else if opcode == $04 {
             // INC B
             inc_instr(&mut gb, &mut gb.b)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("0C") {
+        } else if opcode == $0C {
             // INC C
             inc_instr(&mut gb, &mut gb.c)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("14") {
+        } else if opcode == $14 {
             // INC D
             inc_instr(&mut gb, &mut gb.d)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("1C") {
+        } else if opcode == $1C {
             // INC E
             inc_instr(&mut gb, &mut gb.e)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("24") {
+        } else if opcode == $24 {
             // INC H
             inc_instr(&mut gb, &mut gb.h)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("2C") {
+        } else if opcode == $2C {
             // INC L
             inc_instr(&mut gb, &mut gb.l)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("34") {
+        } else if opcode == $34 {
             // INC (HL)
             val := read_gb_byte(&gb, get_hl(&gb))
             inc_instr(&mut gb, &mut val)
@@ -293,81 +303,82 @@ fn main() {
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("3D") {
+        } else if opcode == $3D {
             // DEC A
             dec_instr(&mut gb, &mut gb.a)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("05") {
+        } else if opcode == $05 {
             // DEC B
             dec_instr(&mut gb, &mut gb.b)
 
-            print("decremented B to ")
+            /*print("decremented B to ")
             print_byte(gb.b)
             print(", ")
             if !gb.z_flag {
                 print("N")
             }
-            print("Z\n")
+            print("Z\n")*/
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("0D") {
+        } else if opcode == $0D {
             // DEC C
             dec_instr(&mut gb, &mut gb.c)
 
+/*
             print("decremented C to ")
             print_byte(gb.c)
             print(", ")
             if !gb.z_flag {
                 print("N")
             }
-            print("Z\n")
+            print("Z\n")*/
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("15") {
+        } else if opcode == $15 {
             // DEC D
             dec_instr(&mut gb, &mut gb.d)
 
-            print("decremented D to ")
+            /*print("decremented D to ")
             print_byte(gb.d)
             print(", ")
             if !gb.z_flag {
                 print("N")
             }
-            print("Z\n")
+            print("Z\n")*/
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("1D") {
+        } else if opcode == $1D {
             // DEC E
             dec_instr(&mut gb, &mut gb.e)
 
-            print("decremented E to ")
+            /*print("decremented E to ")
             print_byte(gb.e)
             print(", ")
             if !gb.z_flag {
                 print("N")
             }
-            print("Z\n")
+            print("Z\n")*/
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("25") {
+        } else if opcode == $25 {
             // DEC H
             dec_instr(&mut gb, &mut gb.h)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("2D") {
+        } else if opcode == $2D {
             // DEC L
             dec_instr(&mut gb, &mut gb.l)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("35") {
+        } else if opcode == $35 {
             // DEC (HL)
             val := read_gb_byte(&gb, get_hl(&gb))
             dec_instr(&mut gb, &mut val)
@@ -375,317 +386,317 @@ fn main() {
 
             pc = pc + 1
             counter = counter + 12
-        } else if opcode == hex("BF") {
+        } else if opcode == $BF {
             // CP A
             cp_instr(&mut gb, gb.a)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("B8") {
+        } else if opcode == $B8 {
             // CP B
             cp_instr(&mut gb, gb.b)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("B9") {
+        } else if opcode == $B9 {
             // CP C
             cp_instr(&mut gb, gb.c)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("BA") {
+        } else if opcode == $BA {
             // CP D
             cp_instr(&mut gb, gb.d)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("BB") {
+        } else if opcode == $BB {
             // CP E
             cp_instr(&mut gb, gb.e)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("BC") {
+        } else if opcode == $BC {
             // CP H
             cp_instr(&mut gb, gb.h)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("BD") {
+        } else if opcode == $BD {
             // CP L
             cp_instr(&mut gb, gb.l)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("BE") {
+        } else if opcode == $BE {
             // CP (HL)
             val :: read_gb_byte(&gb, get_hl(&gb))
             cp_instr(&mut gb, val)
 
             pc = pc + 1
             counter = counter + 8
-        } else if opcode == hex("FE") {
+        } else if opcode == $FE {
             // CP #
             val :: read_gb_byte(&gb, pc + 1)
             cp_instr(&mut gb, val)
 
             pc = pc + 2
             counter = counter + 8
-        } else if opcode == hex("97") {
+        } else if opcode == $97 {
             // SUB A
             sub_instr(&mut gb, gb.a)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("90") {
+        } else if opcode == $90 {
             // SUB B
             sub_instr(&mut gb, gb.b)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("91") {
+        } else if opcode == $91 {
             // SUB C
             sub_instr(&mut gb, gb.c)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("92") {
+        } else if opcode == $92 {
             // SUB D
             sub_instr(&mut gb, gb.d)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("93") {
+        } else if opcode == $93 {
             // SUB E
             sub_instr(&mut gb, gb.e)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("94") {
+        } else if opcode == $94 {
             // SUB H
             sub_instr(&mut gb, gb.h)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("95") {
+        } else if opcode == $95 {
             // SUB L
             sub_instr(&mut gb, gb.l)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("96") {
+        } else if opcode == $96 {
             // SUB (HL)
             val :: read_gb_byte(&gb, get_hl(&gb))
             sub_instr(&mut gb, val)
 
             pc = pc + 1
             counter = counter + 8
-        } else if opcode == hex("D6") {
+        } else if opcode == $D6 {
             // SUB #
             val :: read_gb_byte(&gb, pc + 1)
             sub_instr(&mut gb, val)
 
             pc = pc + 2
             counter = counter + 8
-        } else if opcode == hex("03") {
+        } else if opcode == $03 {
             // INC BC
             set_bc(&mut gb, get_bc(&gb) + 1)
             pc = pc + 1
             counter = counter + 8
-        } else if opcode == hex("13") {
+        } else if opcode == $13 {
             // INC DE
             set_de(&mut gb, get_de(&gb) + 1)
             pc = pc + 1
             counter = counter + 8
-        } else if opcode == hex("23") {
+        } else if opcode == $23 {
             // INC HL
             set_hl(&mut gb, get_hl(&gb) + 1)
             pc = pc + 1
             counter = counter + 8
-        } else if opcode == hex("33") {
+        } else if opcode == $33 {
             // INC SP
             sp = sp + 1
             pc = pc + 1
             counter = counter + 8
-        } else if opcode == hex("06") {
+        } else if opcode == $06 {
             // LD B, n
             val :: read_gb_byte(&gb, pc + 1)
             gb.b = val
             pc = pc + 2
             counter = counter + 8
-        } else if opcode == hex("0E") {
+        } else if opcode == $0E {
             // LD C, n
             val :: read_gb_byte(&gb, pc + 1)
             gb.c = val
             pc = pc + 2
             counter = counter + 8
-        } else if opcode == hex("16") {
+        } else if opcode == $16 {
             // LD D, n
             val :: read_gb_byte(&gb, pc + 1)
             gb.d = val
             pc = pc + 2
             counter = counter + 8
-        } else if opcode == hex("1E") {
+        } else if opcode == $1E {
             // LD E, n
             val :: read_gb_byte(&gb, pc + 1)
             gb.e = val
             pc = pc + 2
             counter = counter + 8
-        } else if opcode == hex("26") {
+        } else if opcode == $26 {
             // LD H, n
             val :: read_gb_byte(&gb, pc + 1)
             gb.h = val
             pc = pc + 2
             counter = counter + 8
-        } else if opcode == hex("2E") {
+        } else if opcode == $2E {
             // LD L, n
             val :: read_gb_byte(&gb, pc + 1)
             gb.l = val
             pc = pc + 2
             counter = counter + 8
-        } else if opcode == hex("7F") {
+        } else if opcode == $7F {
             // LD A, A
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("78") {
+        } else if opcode == $78 {
             // LD A, B
             gb.a = gb.b
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("79") {
+        } else if opcode == $79 {
             // LD A, C
             gb.a = gb.c
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("7A") {
+        } else if opcode == $7A {
             // LD A, D
             gb.a = gb.d
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("7B") {
+        } else if opcode == $7B {
             // LD A, E
             gb.a = gb.e
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("7C") {
+        } else if opcode == $7C {
             // LD A, H
             gb.a = gb.h
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("7D") {
+        } else if opcode == $7D {
             // LD A, L
             gb.a = gb.l
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("0A") {
+        } else if opcode == $0A {
             // LD A, (BC)
             gb.a = read_gb_byte(&gb, get_bc(&gb))
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("47") {
+        } else if opcode == $47 {
             // LD B, A
             gb.b = gb.a
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("4F") {
+        } else if opcode == $4F {
             // LD C, A
             gb.c = gb.a
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("57") {
+        } else if opcode == $57 {
             // LD D, A
             gb.d = gb.a
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("5F") {
+        } else if opcode == $5F {
             // LD E, A
             gb.e = gb.a
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("67") {
+        } else if opcode == $67 {
             // LD H, A
             gb.h = gb.a
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("6F") {
+        } else if opcode == $6F {
             // LD L, A
             gb.l = gb.a
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("02") {
+        } else if opcode == $02 {
             // LD (BC), A
             write_gb_byte(&gb, get_bc(&gb), gb.a)
             pc = pc + 1
             counter = counter + 8
-        } else if opcode == hex("12") {
+        } else if opcode == $12 {
             // LD (DE), A
             write_gb_byte(&gb, get_de(&gb), gb.a)
             pc = pc + 1
             counter = counter + 8
-        } else if opcode == hex("77") {
+        } else if opcode == $77 {
             // LD (HL), A
             write_gb_byte(&gb, get_hl(&gb), gb.a)
             pc = pc + 1
             counter = counter + 8
-        } else if opcode == hex("EA") {
+        } else if opcode == $EA {
             // LD (nn), A
             address :: read_gb_word(&gb, pc + 1)
             write_gb_byte(&gb, address, gb.a)
             pc = pc + 3
             counter = counter + 16
-        } else if opcode == hex("17") {
+        } else if opcode == $17 {
             // RL A
             rl_instr(&mut gb, &mut gb.a)
 
             pc = pc + 1
             counter = counter + 4
-        } else if opcode == hex("CB") {
+        } else if opcode == $CB {
             // Extended opcodes
             pc = pc + 1
             opcode :: read_gb_byte(&gb, pc)
-            if opcode == hex("17") {
+            if opcode == $17 {
                 // RL A
                 rl_instr(&mut gb, &mut gb.a)
 
                 pc = pc + 1
                 counter = counter + 8
-            } else if opcode == hex("10") {
+            } else if opcode == $10 {
                 // RL B
                 rl_instr(&mut gb, &mut gb.b)
 
                 pc = pc + 1
                 counter = counter + 8
-            } else if opcode == hex("11") {
+            } else if opcode == $11 {
                 // RL C
                 rl_instr(&mut gb, &mut gb.c)
 
                 pc = pc + 1
                 counter = counter + 8
-            } else if opcode == hex("12") {
+            } else if opcode == $12 {
                 // RL D
                 rl_instr(&mut gb, &mut gb.d)
 
                 pc = pc + 1
                 counter = counter + 8
-            } else if opcode == hex("13") {
+            } else if opcode == $13 {
                 // RL E
                 rl_instr(&mut gb, &mut gb.e)
 
                 pc = pc + 1
                 counter = counter + 8
-            } else if opcode == hex("14") {
+            } else if opcode == $14 {
                 // RL H
                 rl_instr(&mut gb, &mut gb.h)
 
                 pc = pc + 1
                 counter = counter + 8
-            } else if opcode == hex("15") {
+            } else if opcode == $15 {
                 // RL L
                 rl_instr(&mut gb, &mut gb.l)
 
                 pc = pc + 1
                 counter = counter + 8
-            } else if opcode == hex("16") {
+            } else if opcode == $16 {
                 // RL (HL)
                 val := read_gb_byte(&gb, get_hl(&gb))
                 rl_instr(&mut gb, &mut val)
@@ -693,7 +704,7 @@ fn main() {
 
                 pc = pc + 1
                 counter = counter + 16
-            } else if (opcode & neg(hex("38"))) == hex("44") {
+            } else if (opcode & neg($38)) == $44 {
                 // BIT b, H
                 b :: (opcode / 16) & 7
                 // TODO: change precedence of equality operator so this isn't required
@@ -967,12 +978,20 @@ fn free_slice(slice: ByteSlice *mut) {
     (*slice).size = 0
 }
 
-fn print_num(num: i32) {
+fn print_num(num: i64) {
     num := num
     if num < 0 {
         print("-")
         num = -num
     }
+    if num >= 10 {
+        print_num(num / 10)
+    }
+    print((num % 10) as u8 + "0")
+}
+
+fn print_num(num: u64) {
+    num := num
     if num >= 10 {
         print_num(num / 10)
     }
@@ -1001,31 +1020,6 @@ fn print_word(num: u16) {
     print("0x")
     print_byte_recurse((num / 256) as u8, 0)
     print_byte_recurse(num as u8, 0)
-}
-
-fn hex(num: u8*): u8 {
-    cur := num
-    val := 0 as u8
-    while *cur != 0 {
-        digit := *cur
-        if digit >= "0" && digit <= "9" {
-            digit = digit - "0"
-        } else if digit >= "a" && digit <= "f" {
-            digit = digit - "a" + 10
-        } else if digit >= "A" && digit <= "F" {
-            digit = digit - "A" + 10
-        } else {
-            print("unrecognized character in hex string: ")
-            print(digit)
-            print("\n")
-            panic()
-        }
-        // Left-shift by 4
-        val = val * 16
-        val = val | digit
-        cur = (cur as usize + 1) as u8*
-    }
-    val
 }
 
 fn xor(a: u8, b: u8): u8 {
@@ -1108,6 +1102,9 @@ kernel32 :: extern_mod("kernel32.dll") {
     fn CloseHandle(hObject: HANDLE): BOOL
     fn GetFileSizeEx(hFile: HANDLE, lpFileSize: u64 *mut): BOOL
     fn ReadFile(hFile: HANDLE, lpBuffer: void *mut, nNumberOfBytesToRead: DWORD, lpNumberOfBytesRead: DWORD *mut, lpOverlapped: OVERLAPPED *mut): BOOL
+
+    fn QueryPerformanceCounter(lpPerformanceCount: u64 *mut): BOOL
+    fn QueryPerformanceFrequency(lpFrequency: u64 *mut): BOOL
 }
 
 user32 :: extern_mod("user32.dll") {
