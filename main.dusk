@@ -15,6 +15,9 @@ fn main() {
     pc := 0 as u16
 
     counter := 0 as usize
+    interrupts_enabled := false // TODO: is this an accurate default?
+    interrupt_action: i8 = 0
+
     breakpoint :: $eb as u16
     stepping := false
     last_time: u64 = 0
@@ -25,6 +28,7 @@ fn main() {
     if kernel32.QueryPerformanceFrequency(&mut timer_freq) == FALSE {
         panic("unable to get performance frequency")
     }
+
     while true {
         if pc == breakpoint {
             //stepping = true
@@ -62,7 +66,22 @@ fn main() {
             last_time = time
         }
 
-        if opcode == $0E {
+        /*if interrupt_action > 0 {
+            interrupt_action = interrupt_action - 1
+            if interrupt_action == 0 {
+                interrupts_enabled = true
+            }
+        } else if interrupt_action < 0 {
+            interrupt_action = interrupt_action + 1
+            if interrupt_action == 0 {
+                interrupts_enabled = false
+            }
+        }*/
+
+        if opcode == $00 {
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == $0E {
             // LD C, n
             gb.c = read_gb_byte(&gb, pc + 1)
             pc = pc + 2
@@ -109,6 +128,9 @@ fn main() {
             val :: read_gb_byte(&gb, pc + 1)
             gb.a = read_gb_byte(&gb, 65280 + val as u16)
             pc = pc + 2
+            counter = counter + 12
+        } else if opcode == $C3 {
+            pc = read_gb_word(&gb, pc + 1)
             counter = counter + 12
         } else if opcode == $20 {
             // JR NZ, n
@@ -214,6 +236,11 @@ fn main() {
             set_hl(&mut gb, val)
 
             pc = pc + 1
+            counter = counter + 12
+        } else if opcode == $01 {
+            // LD BC, nn
+            set_bc(&mut gb, read_gb_word(&gb, pc + 1))
+            pc = pc + 3
             counter = counter + 12
         } else if opcode == $11 {
             // LD DE, nn
@@ -496,6 +523,53 @@ fn main() {
             sp = sp + 1
             pc = pc + 1
             counter = counter + 8
+        } else if opcode == $87 {
+            // ADD A, A
+            add_instr(&mut gb, gb.a)
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == $80 {
+            // ADD A, B
+            add_instr(&mut gb, gb.b)
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == $81 {
+            // ADD A, C
+            add_instr(&mut gb, gb.c)
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == $82 {
+            // ADD A, D
+            add_instr(&mut gb, gb.d)
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == $83 {
+            // ADD A, E
+            add_instr(&mut gb, gb.e)
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == $84 {
+            // ADD A, H
+            add_instr(&mut gb, gb.h)
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == $85 {
+            // ADD A, L
+            add_instr(&mut gb, gb.l)
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == $86 {
+            // ADD A, (HL)
+            hl :: get_hl(&gb)
+            add_instr(&mut gb, read_gb_byte(&gb, hl))
+            pc = pc + 1
+            counter = counter + 8
+        } else if opcode == $C6 {
+            // ADD A, #
+            num :: read_gb_byte(&gb, pc + 1)
+            add_instr(&mut gb, num)
+            pc = pc + 2
+            counter = counter + 8
         } else if opcode == $06 {
             // LD B, n
             val :: read_gb_byte(&gb, pc + 1)
@@ -616,6 +690,12 @@ fn main() {
             write_gb_byte(&mut gb, get_hl(&gb), gb.a)
             pc = pc + 1
             counter = counter + 8
+        } else if opcode == $36 {
+            // LD (HL), n
+            val :: read_gb_byte(&gb, pc + 1)
+            write_gb_byte(&mut gb, get_hl(&gb), val)
+            pc = pc + 3
+            counter = counter + 12
         } else if opcode == $EA {
             // LD (nn), A
             address :: read_gb_word(&gb, pc + 1)
@@ -626,6 +706,17 @@ fn main() {
             // RL A
             rl_instr(&mut gb, &mut gb.a)
 
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == $F3 {
+            // DI
+            // TODO: this cast shouldn't be necessary
+            interrupt_action = -(2 as i8)
+            pc = pc + 1
+            counter = counter + 4
+        } else if opcode == $FB {
+            // EI
+            interrupt_action = 2
             pc = pc + 1
             counter = counter + 4
         } else if opcode == $CB {
@@ -796,6 +887,7 @@ fn write_gb_byte(gb: GameBoy *mut, address: u16, value: u8) {
     } else if address == BOOT_REGISTER {
         if (value & 1) == 1 {
             (*gb).bootrom_enabled = false
+            print("Disabled bootrom!\n")
         }
     } else {
         write_byte((*gb).memory, address, value)
@@ -906,6 +998,17 @@ fn inc_instr(gb: GameBoy *mut, register: u8 *mut) {
     (*gb).n_flag = false
 }
 
+fn add_instr(gb: GameBoy *mut, register: u8) {
+    // TODO: kind of expensive to compute three additions here, should come up with something better
+    (*gb).h_flag = (((*gb).a & $0F) + register & $0F) > $0F // TODO: Not sure if correct!
+    (*gb).c_flag = (((*gb).a as u16) + (register as u16)) > $FF // TODO: Not sure if correct!
+
+    ((*gb).a = (*gb).a + register)
+
+    (*gb).z_flag = (*gb).a == 0
+    (*gb).n_flag = false
+}
+
 
 
 
@@ -1004,12 +1107,12 @@ fn print_byte_recurse(num: u8, count: u8) {
 }
 
 fn print_byte(num: u8) {
-    print("0x")
+    print("$")
     print_byte_recurse(num, 0)
 }
 
 fn print_word(num: u16) {
-    print("0x")
+    print("$")
     print_byte_recurse((num >> 8) as u8, 0)
     print_byte_recurse(num as u8, 0)
 }
