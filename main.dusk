@@ -78,726 +78,835 @@ fn main() {
             }
         }*/
 
-        if opcode == $00 {
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $0E {
-            // LD C, n
-            gb.c = read_gb_byte(&gb, pc + 1)
-            pc = pc + 2
-            counter = counter + 8
-        } else if opcode == $0A {
-            // LD A, (BC)
-            gb.a = read_gb_byte(&gb, get_bc(&gb))
-            pc = pc + 1
-            counter = counter + 8
-        } else if opcode == $1A {
-            // LD A, (DE)
-            gb.a = read_gb_byte(&gb, get_de(&gb))
-            pc = pc + 1
-            counter = counter + 8
-        } else if opcode == $7E {
-            // LD A, (HL)
-            gb.a = read_gb_byte(&gb, get_hl(&gb))
-            pc = pc + 1
-            counter = counter + 8
-        } else if opcode == $FA {
-            // LD A, (nn)
-            address :: read_gb_word(&gb, pc + 1)
-            gb.a = read_gb_byte(&gb, address)
-            pc = pc + 3
-            counter = counter + 16
-        } else if opcode == $3E {
-            // LD A, #
-            gb.a = read_gb_byte(&gb, pc + 1)
-            pc = pc + 2
-            counter = counter + 8
-        } else if opcode == $E2 {
-            // LD (C), A
-            write_gb_byte(&mut gb, 65280 + gb.c as u16, gb.a)
-            pc = pc + 1
-            counter = counter + 8
-        } else if opcode == $E0 {
-            // LDH (n), A
-            val :: read_gb_byte(&gb, pc + 1)
-            write_gb_byte(&mut gb, 65280 + val as u16, gb.a)
-            pc = pc + 2
-            counter = counter + 12
-        } else if opcode == $F0 {
-            // LDH A, (n)
-            val :: read_gb_byte(&gb, pc + 1)
-            gb.a = read_gb_byte(&gb, 65280 + val as u16)
-            pc = pc + 2
-            counter = counter + 12
-        } else if opcode == $C3 {
-            pc = read_gb_word(&gb, pc + 1)
-            counter = counter + 12
-        } else if opcode == $20 {
-            // JR NZ, n
-            if !gb.z_flag {
-                offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
-                pc = pc + offset
+        switch opcode {
+            $00: {
+                pc = pc + 1
+                counter = counter + 4
             }
-            pc = pc + 2
-            counter = counter + 8
-        } else if opcode == $28 {
-            // JR Z, n
-            if gb.z_flag {
-                offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
-                pc = pc + offset
+            $1A: {
+                // LD A, (DE)
+                gb.a = read_gb_byte(&gb, get_de(&gb))
+                pc = pc + 1
+                counter = counter + 8
             }
-            pc = pc + 2
-            counter = counter + 8
-        } else if opcode == $30 {
-            // JR NC, n
-            if !gb.c_flag {
-                offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
-                pc = pc + offset
+            $7E: {
+                // LD A, (HL)
+                gb.a = read_gb_byte(&gb, get_hl(&gb))
+                pc = pc + 1
+                counter = counter + 8
             }
-            pc = pc + 2
-            counter = counter + 8
-        } else if opcode == $38 {
-            // JR C, n
-            if gb.c_flag {
-                offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
-                pc = pc + offset
+            $FA: {
+                // LD A, (nn)
+                address :: read_gb_word(&gb, pc + 1)
+                gb.a = read_gb_byte(&gb, address)
+                pc = pc + 3
+                counter = counter + 16
             }
-            pc = pc + 2
-            counter = counter + 8
-        } else if opcode == $18 {
-            // JR n
-            offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
-            pc = pc + offset + 2
-            counter = counter + 8
-        } else if opcode == $CD {
-            // CALL nn
-            sp = sp - 2
-            address :: read_gb_word(&gb, pc + 1)
-            write_gb_word(&mut gb, sp, pc + 3)
-            pc = address
-            counter = counter + 12
-        } else if opcode == $C9 {
-            address :: read_gb_word(&gb, sp)
-            sp = sp + 2
-            pc = address
-            counter = counter + 8
-        } else if opcode == $F5 {
-            // PUSH AF
-            sp = sp - 2
-            write_gb_word(&mut gb, sp, get_af(&gb))
-            pc = pc + 1
-            counter = counter + 16
-        } else if opcode == $C5 {
-            // PUSH BC
-            sp = sp - 2
-            write_gb_word(&mut gb, sp, get_bc(&gb))
-            pc = pc + 1
-            counter = counter + 16
-        } else if opcode == $D5 {
-            // PUSH DE
-            sp = sp - 2
-            write_gb_word(&mut gb, sp, get_de(&gb))
-            pc = pc + 1
-            counter = counter + 16
-        } else if opcode == $E5 {
-            // PUSH HL
-            sp = sp - 2
-            write_gb_word(&mut gb, sp, get_hl(&gb))
-            pc = pc + 1
-            counter = counter + 16
-        } else if opcode == $F1 {
-            // POP AF
-            val :: read_gb_word(&gb, sp)
-            sp = sp + 2
-            set_af(&mut gb, val)
-
-            pc = pc + 1
-            counter = counter + 12
-        } else if opcode == $C1 {
-            // POP BC
-            val :: read_gb_word(&gb, sp)
-            sp = sp + 2
-            set_bc(&mut gb, val)
-
-            pc = pc + 1
-            counter = counter + 12
-        } else if opcode == $D1 {
-            // POP DE
-            val :: read_gb_word(&gb, sp)
-            sp = sp + 2
-            set_de(&mut gb, val)
-
-            pc = pc + 1
-            counter = counter + 12
-        } else if opcode == $E1 {
-            // POP HL
-            val :: read_gb_word(&gb, sp)
-            sp = sp + 2
-            set_hl(&mut gb, val)
-
-            pc = pc + 1
-            counter = counter + 12
-        } else if opcode == $01 {
-            // LD BC, nn
-            set_bc(&mut gb, read_gb_word(&gb, pc + 1))
-            pc = pc + 3
-            counter = counter + 12
-        } else if opcode == $11 {
-            // LD DE, nn
-            set_de(&mut gb, read_gb_word(&gb, pc + 1))
-            pc = pc + 3
-            counter = counter + 12
-        } else if opcode == $21 {
-            // LD HL, nn
-            set_hl(&mut gb, read_gb_word(&gb, pc + 1))
-            pc = pc + 3
-            counter = counter + 12
-        } else if opcode == $31 {
-            // LD SP, nn
-            sp = read_gb_word(&gb, pc + 1)
-            pc = pc + 3
-            counter = counter + 12
-        } else if opcode == $AF {
-            // XOR A
-            gb.a = gb.a ^ gb.a
-            gb.z_flag = gb.a == 0
-            gb.n_flag = false
-            gb.h_flag = false
-            gb.c_flag = false
-
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $32 {
-            // LDD (HL), A
-            write_gb_byte(&mut gb, get_hl(&gb), gb.a)
-            set_hl(&mut gb, get_hl(&gb) - 1)
-            // TODO: flags?
-            pc = pc + 1
-            counter = counter + 8
-        } else if opcode == $22 {
-            // LDI (HL), A
-            write_gb_byte(&mut gb, get_hl(&gb), gb.a)
-            set_hl(&mut gb, get_hl(&gb) + 1)
-            // TODO: flags?
-            pc = pc + 1
-            counter = counter + 8
-        } else if opcode == $3C {
-            // INC A
-            inc_instr(&mut gb, &mut gb.a)
-
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $04 {
-            // INC B
-            inc_instr(&mut gb, &mut gb.b)
-
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $0C {
-            // INC C
-            inc_instr(&mut gb, &mut gb.c)
-
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $14 {
-            // INC D
-            inc_instr(&mut gb, &mut gb.d)
-
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $1C {
-            // INC E
-            inc_instr(&mut gb, &mut gb.e)
-
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $24 {
-            // INC H
-            inc_instr(&mut gb, &mut gb.h)
-
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $2C {
-            // INC L
-            inc_instr(&mut gb, &mut gb.l)
-
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $34 {
-            // INC (HL)
-            val := read_gb_byte(&gb, get_hl(&gb))
-            inc_instr(&mut gb, &mut val)
-            write_gb_byte(&mut gb, get_hl(&gb), val)
-
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $3D {
-            // DEC A
-            dec_instr(&mut gb, &mut gb.a)
-
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $05 {
-            // DEC B
-            dec_instr(&mut gb, &mut gb.b)
-
-            if pc == $8e {
-                print("decremented B to ")
-                print_byte(gb.b)
-                print(", ")
+            $3E: {
+                // LD A, #
+                gb.a = read_gb_byte(&gb, pc + 1)
+                pc = pc + 2
+                counter = counter + 8
+            }
+            $E2: {
+                // LD (C), A
+                write_gb_byte(&mut gb, 65280 + gb.c as u16, gb.a)
+                pc = pc + 1
+                counter = counter + 8
+            }
+            $E0: {
+                // LDH (n), A
+                val :: read_gb_byte(&gb, pc + 1)
+                write_gb_byte(&mut gb, 65280 + val as u16, gb.a)
+                pc = pc + 2
+                counter = counter + 12
+            }
+            $F0: {
+                // LDH A, (n)
+                val :: read_gb_byte(&gb, pc + 1)
+                gb.a = read_gb_byte(&gb, 65280 + val as u16)
+                pc = pc + 2
+                counter = counter + 12
+            }
+            $C3: {
+                pc = read_gb_word(&gb, pc + 1)
+                counter = counter + 12
+            }
+            $20: {
+                // JR NZ, n
                 if !gb.z_flag {
-                    print("N")
+                    offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
+                    pc = pc + offset
                 }
-                print("Z\n")
+                pc = pc + 2
+                counter = counter + 8
             }
+            $28: {
+                // JR Z, n
+                if gb.z_flag {
+                    offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
+                    pc = pc + offset
+                }
+                pc = pc + 2
+                counter = counter + 8
+            }
+            $30: {
+                // JR NC, n
+                if !gb.c_flag {
+                    offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
+                    pc = pc + offset
+                }
+                pc = pc + 2
+                counter = counter + 8
+            }
+            $38: {
+                // JR C, n
+                if gb.c_flag {
+                    offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
+                    pc = pc + offset
+                }
+                pc = pc + 2
+                counter = counter + 8
+            }
+            $18: {
+                // JR n
+                offset :: read_gb_byte(&gb, pc + 1) as i8 as i16 as u16
+                pc = pc + offset + 2
+                counter = counter + 8
+            }
+            $CD: {
+                // CALL nn
+                sp = sp - 2
+                address :: read_gb_word(&gb, pc + 1)
+                write_gb_word(&mut gb, sp, pc + 3)
+                pc = address
+                counter = counter + 12
+            }
+            $C9: {
+                address :: read_gb_word(&gb, sp)
+                sp = sp + 2
+                pc = address
+                counter = counter + 8
+            }
+            $F5: {
+                // PUSH AF
+                sp = sp - 2
+                write_gb_word(&mut gb, sp, get_af(&gb))
+                pc = pc + 1
+                counter = counter + 16
+            }
+            $C5: {
+                // PUSH BC
+                sp = sp - 2
+                write_gb_word(&mut gb, sp, get_bc(&gb))
+                pc = pc + 1
+                counter = counter + 16
+            }
+            $D5: {
+                // PUSH DE
+                sp = sp - 2
+                write_gb_word(&mut gb, sp, get_de(&gb))
+                pc = pc + 1
+                counter = counter + 16
+            }
+            $E5: {
+                // PUSH HL
+                sp = sp - 2
+                write_gb_word(&mut gb, sp, get_hl(&gb))
+                pc = pc + 1
+                counter = counter + 16
+            }
+            $F1: {
+                // POP AF
+                val :: read_gb_word(&gb, sp)
+                sp = sp + 2
+                set_af(&mut gb, val)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $0D {
-            // DEC C
-            dec_instr(&mut gb, &mut gb.c)
+                pc = pc + 1
+                counter = counter + 12
+            }
+            $C1: {
+                // POP BC
+                val :: read_gb_word(&gb, sp)
+                sp = sp + 2
+                set_bc(&mut gb, val)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $15 {
-            // DEC D
-            dec_instr(&mut gb, &mut gb.d)
+                pc = pc + 1
+                counter = counter + 12
+            }
+            $D1: {
+                // POP DE
+                val :: read_gb_word(&gb, sp)
+                sp = sp + 2
+                set_de(&mut gb, val)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $1D {
-            // DEC E
-            dec_instr(&mut gb, &mut gb.e)
+                pc = pc + 1
+                counter = counter + 12
+            }
+            $E1: {
+                // POP HL
+                val :: read_gb_word(&gb, sp)
+                sp = sp + 2
+                set_hl(&mut gb, val)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $25 {
-            // DEC H
-            dec_instr(&mut gb, &mut gb.h)
+                pc = pc + 1
+                counter = counter + 12
+            }
+            $01: {
+                // LD BC, nn
+                set_bc(&mut gb, read_gb_word(&gb, pc + 1))
+                pc = pc + 3
+                counter = counter + 12
+            }
+            $11: {
+                // LD DE, nn
+                set_de(&mut gb, read_gb_word(&gb, pc + 1))
+                pc = pc + 3
+                counter = counter + 12
+            }
+            $21: {
+                // LD HL, nn
+                set_hl(&mut gb, read_gb_word(&gb, pc + 1))
+                pc = pc + 3
+                counter = counter + 12
+            }
+            $31: {
+                // LD SP, nn
+                sp = read_gb_word(&gb, pc + 1)
+                pc = pc + 3
+                counter = counter + 12
+            }
+            $AF: {
+                // XOR A
+                gb.a = gb.a ^ gb.a
+                gb.z_flag = gb.a == 0
+                gb.n_flag = false
+                gb.h_flag = false
+                gb.c_flag = false
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $2D {
-            // DEC L
-            dec_instr(&mut gb, &mut gb.l)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $32: {
+                // LDD (HL), A
+                write_gb_byte(&mut gb, get_hl(&gb), gb.a)
+                set_hl(&mut gb, get_hl(&gb) - 1)
+                // TODO: flags?
+                pc = pc + 1
+                counter = counter + 8
+            }
+            $22: {
+                // LDI (HL), A
+                write_gb_byte(&mut gb, get_hl(&gb), gb.a)
+                set_hl(&mut gb, get_hl(&gb) + 1)
+                // TODO: flags?
+                pc = pc + 1
+                counter = counter + 8
+            }
+            $3C: {
+                // INC A
+                inc_instr(&mut gb, &mut gb.a)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $35 {
-            // DEC (HL)
-            val := read_gb_byte(&gb, get_hl(&gb))
-            dec_instr(&mut gb, &mut val)
-            write_gb_byte(&mut gb, get_hl(&gb), val)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $04: {
+                // INC B
+                inc_instr(&mut gb, &mut gb.b)
 
-            pc = pc + 1
-            counter = counter + 12
-        } else if opcode == $BF {
-            // CP A
-            cp_instr(&mut gb, gb.a)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $0C: {
+                // INC C
+                inc_instr(&mut gb, &mut gb.c)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $B8 {
-            // CP B
-            cp_instr(&mut gb, gb.b)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $14: {
+                // INC D
+                inc_instr(&mut gb, &mut gb.d)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $B9 {
-            // CP C
-            cp_instr(&mut gb, gb.c)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $1C: {
+                // INC E
+                inc_instr(&mut gb, &mut gb.e)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $BA {
-            // CP D
-            cp_instr(&mut gb, gb.d)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $24: {
+                // INC H
+                inc_instr(&mut gb, &mut gb.h)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $BB {
-            // CP E
-            cp_instr(&mut gb, gb.e)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $2C: {
+                // INC L
+                inc_instr(&mut gb, &mut gb.l)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $BC {
-            // CP H
-            cp_instr(&mut gb, gb.h)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $34: {
+                // INC (HL)
+                val := read_gb_byte(&gb, get_hl(&gb))
+                inc_instr(&mut gb, &mut val)
+                write_gb_byte(&mut gb, get_hl(&gb), val)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $BD {
-            // CP L
-            cp_instr(&mut gb, gb.l)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $3D: {
+                // DEC A
+                dec_instr(&mut gb, &mut gb.a)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $BE {
-            // CP (HL)
-            val :: read_gb_byte(&gb, get_hl(&gb))
-            cp_instr(&mut gb, val)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $05: {
+                // DEC B
+                dec_instr(&mut gb, &mut gb.b)
 
-            pc = pc + 1
-            counter = counter + 8
-        } else if opcode == $FE {
-            // CP #
-            val :: read_gb_byte(&gb, pc + 1)
-            cp_instr(&mut gb, val)
+                if pc == $8e {
+                    print("decremented B to ")
+                    print_byte(gb.b)
+                    print(", ")
+                    if !gb.z_flag {
+                        print("N")
+                    }
+                    print("Z\n")
+                }
 
-            pc = pc + 2
-            counter = counter + 8
-        } else if opcode == $97 {
-            // SUB A
-            sub_instr(&mut gb, gb.a)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $0D: {
+                // DEC C
+                dec_instr(&mut gb, &mut gb.c)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $90 {
-            // SUB B
-            sub_instr(&mut gb, gb.b)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $15: {
+                // DEC D
+                dec_instr(&mut gb, &mut gb.d)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $91 {
-            // SUB C
-            sub_instr(&mut gb, gb.c)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $1D: {
+                // DEC E
+                dec_instr(&mut gb, &mut gb.e)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $92 {
-            // SUB D
-            sub_instr(&mut gb, gb.d)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $25: {
+                // DEC H
+                dec_instr(&mut gb, &mut gb.h)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $93 {
-            // SUB E
-            sub_instr(&mut gb, gb.e)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $2D: {
+                // DEC L
+                dec_instr(&mut gb, &mut gb.l)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $94 {
-            // SUB H
-            sub_instr(&mut gb, gb.h)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $35: {
+                // DEC (HL)
+                val := read_gb_byte(&gb, get_hl(&gb))
+                dec_instr(&mut gb, &mut val)
+                write_gb_byte(&mut gb, get_hl(&gb), val)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $95 {
-            // SUB L
-            sub_instr(&mut gb, gb.l)
+                pc = pc + 1
+                counter = counter + 12
+            }
+            $BF: {
+                // CP A
+                cp_instr(&mut gb, gb.a)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $96 {
-            // SUB (HL)
-            val :: read_gb_byte(&gb, get_hl(&gb))
-            sub_instr(&mut gb, val)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $B8: {
+                // CP B
+                cp_instr(&mut gb, gb.b)
 
-            pc = pc + 1
-            counter = counter + 8
-        } else if opcode == $D6 {
-            // SUB #
-            val :: read_gb_byte(&gb, pc + 1)
-            sub_instr(&mut gb, val)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $B9: {
+                // CP C
+                cp_instr(&mut gb, gb.c)
 
-            pc = pc + 2
-            counter = counter + 8
-        } else if opcode == $03 {
-            // INC BC
-            set_bc(&mut gb, get_bc(&gb) + 1)
-            pc = pc + 1
-            counter = counter + 8
-        } else if opcode == $13 {
-            // INC DE
-            set_de(&mut gb, get_de(&gb) + 1)
-            pc = pc + 1
-            counter = counter + 8
-        } else if opcode == $23 {
-            // INC HL
-            set_hl(&mut gb, get_hl(&gb) + 1)
-            pc = pc + 1
-            counter = counter + 8
-        } else if opcode == $33 {
-            // INC SP
-            sp = sp + 1
-            pc = pc + 1
-            counter = counter + 8
-        } else if opcode == $87 {
-            // ADD A, A
-            add_instr(&mut gb, gb.a)
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $80 {
-            // ADD A, B
-            add_instr(&mut gb, gb.b)
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $81 {
-            // ADD A, C
-            add_instr(&mut gb, gb.c)
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $82 {
-            // ADD A, D
-            add_instr(&mut gb, gb.d)
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $83 {
-            // ADD A, E
-            add_instr(&mut gb, gb.e)
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $84 {
-            // ADD A, H
-            add_instr(&mut gb, gb.h)
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $85 {
-            // ADD A, L
-            add_instr(&mut gb, gb.l)
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $86 {
-            // ADD A, (HL)
-            hl :: get_hl(&gb)
-            add_instr(&mut gb, read_gb_byte(&gb, hl))
-            pc = pc + 1
-            counter = counter + 8
-        } else if opcode == $C6 {
-            // ADD A, #
-            num :: read_gb_byte(&gb, pc + 1)
-            add_instr(&mut gb, num)
-            pc = pc + 2
-            counter = counter + 8
-        } else if opcode == $06 {
-            // LD B, n
-            val :: read_gb_byte(&gb, pc + 1)
-            gb.b = val
-            pc = pc + 2
-            counter = counter + 8
-        } else if opcode == $0E {
-            // LD C, n
-            val :: read_gb_byte(&gb, pc + 1)
-            gb.c = val
-            pc = pc + 2
-            counter = counter + 8
-        } else if opcode == $16 {
-            // LD D, n
-            val :: read_gb_byte(&gb, pc + 1)
-            gb.d = val
-            pc = pc + 2
-            counter = counter + 8
-        } else if opcode == $1E {
-            // LD E, n
-            val :: read_gb_byte(&gb, pc + 1)
-            gb.e = val
-            pc = pc + 2
-            counter = counter + 8
-        } else if opcode == $26 {
-            // LD H, n
-            val :: read_gb_byte(&gb, pc + 1)
-            gb.h = val
-            pc = pc + 2
-            counter = counter + 8
-        } else if opcode == $2E {
-            // LD L, n
-            val :: read_gb_byte(&gb, pc + 1)
-            gb.l = val
-            pc = pc + 2
-            counter = counter + 8
-        } else if opcode == $7F {
-            // LD A, A
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $78 {
-            // LD A, B
-            gb.a = gb.b
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $79 {
-            // LD A, C
-            gb.a = gb.c
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $7A {
-            // LD A, D
-            gb.a = gb.d
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $7B {
-            // LD A, E
-            gb.a = gb.e
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $7C {
-            // LD A, H
-            gb.a = gb.h
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $7D {
-            // LD A, L
-            gb.a = gb.l
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $0A {
-            // LD A, (BC)
-            gb.a = read_gb_byte(&gb, get_bc(&gb))
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $47 {
-            // LD B, A
-            gb.b = gb.a
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $4F {
-            // LD C, A
-            gb.c = gb.a
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $57 {
-            // LD D, A
-            gb.d = gb.a
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $5F {
-            // LD E, A
-            gb.e = gb.a
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $67 {
-            // LD H, A
-            gb.h = gb.a
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $6F {
-            // LD L, A
-            gb.l = gb.a
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $02 {
-            // LD (BC), A
-            write_gb_byte(&mut gb, get_bc(&gb), gb.a)
-            pc = pc + 1
-            counter = counter + 8
-        } else if opcode == $12 {
-            // LD (DE), A
-            write_gb_byte(&mut gb, get_de(&gb), gb.a)
-            pc = pc + 1
-            counter = counter + 8
-        } else if opcode == $77 {
-            // LD (HL), A
-            write_gb_byte(&mut gb, get_hl(&gb), gb.a)
-            pc = pc + 1
-            counter = counter + 8
-        } else if opcode == $36 {
-            // LD (HL), n
-            val :: read_gb_byte(&gb, pc + 1)
-            write_gb_byte(&mut gb, get_hl(&gb), val)
-            pc = pc + 3
-            counter = counter + 12
-        } else if opcode == $EA {
-            // LD (nn), A
-            address :: read_gb_word(&gb, pc + 1)
-            write_gb_byte(&mut gb, address, gb.a)
-            pc = pc + 3
-            counter = counter + 16
-        } else if opcode == $17 {
-            // RL A
-            rl_instr(&mut gb, &mut gb.a)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $BA: {
+                // CP D
+                cp_instr(&mut gb, gb.d)
 
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $F3 {
-            // DI
-            // TODO: this cast shouldn't be necessary
-            interrupt_action = -(2 as i8)
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $FB {
-            // EI
-            interrupt_action = 2
-            pc = pc + 1
-            counter = counter + 4
-        } else if opcode == $CB {
-            // Extended opcodes
-            pc = pc + 1
-            opcode :: read_gb_byte(&gb, pc)
-            if opcode == $17 {
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $BB: {
+                // CP E
+                cp_instr(&mut gb, gb.e)
+
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $BC: {
+                // CP H
+                cp_instr(&mut gb, gb.h)
+
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $BD: {
+                // CP L
+                cp_instr(&mut gb, gb.l)
+
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $BE: {
+                // CP (HL)
+                val :: read_gb_byte(&gb, get_hl(&gb))
+                cp_instr(&mut gb, val)
+
+                pc = pc + 1
+                counter = counter + 8
+            }
+            $FE: {
+                // CP #
+                val :: read_gb_byte(&gb, pc + 1)
+                cp_instr(&mut gb, val)
+
+                pc = pc + 2
+                counter = counter + 8
+            }
+            $97: {
+                // SUB A
+                sub_instr(&mut gb, gb.a)
+
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $90: {
+                // SUB B
+                sub_instr(&mut gb, gb.b)
+
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $91: {
+                // SUB C
+                sub_instr(&mut gb, gb.c)
+
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $92: {
+                // SUB D
+                sub_instr(&mut gb, gb.d)
+
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $93: {
+                // SUB E
+                sub_instr(&mut gb, gb.e)
+
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $94: {
+                // SUB H
+                sub_instr(&mut gb, gb.h)
+
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $95: {
+                // SUB L
+                sub_instr(&mut gb, gb.l)
+
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $96: {
+                // SUB (HL)
+                val :: read_gb_byte(&gb, get_hl(&gb))
+                sub_instr(&mut gb, val)
+
+                pc = pc + 1
+                counter = counter + 8
+            }
+            $D6: {
+                // SUB #
+                val :: read_gb_byte(&gb, pc + 1)
+                sub_instr(&mut gb, val)
+
+                pc = pc + 2
+                counter = counter + 8
+            }
+            $03: {
+                // INC BC
+                set_bc(&mut gb, get_bc(&gb) + 1)
+                pc = pc + 1
+                counter = counter + 8
+            }
+            $13: {
+                // INC DE
+                set_de(&mut gb, get_de(&gb) + 1)
+                pc = pc + 1
+                counter = counter + 8
+            }
+            $23: {
+                // INC HL
+                set_hl(&mut gb, get_hl(&gb) + 1)
+                pc = pc + 1
+                counter = counter + 8
+            }
+            $33: {
+                // INC SP
+                sp = sp + 1
+                pc = pc + 1
+                counter = counter + 8
+            }
+            $87: {
+                // ADD A, A
+                add_instr(&mut gb, gb.a)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $80: {
+                // ADD A, B
+                add_instr(&mut gb, gb.b)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $81: {
+                // ADD A, C
+                add_instr(&mut gb, gb.c)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $82: {
+                // ADD A, D
+                add_instr(&mut gb, gb.d)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $83: {
+                // ADD A, E
+                add_instr(&mut gb, gb.e)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $84: {
+                // ADD A, H
+                add_instr(&mut gb, gb.h)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $85: {
+                // ADD A, L
+                add_instr(&mut gb, gb.l)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $86: {
+                // ADD A, (HL)
+                hl :: get_hl(&gb)
+                add_instr(&mut gb, read_gb_byte(&gb, hl))
+                pc = pc + 1
+                counter = counter + 8
+            }
+            $C6: {
+                // ADD A, #
+                num :: read_gb_byte(&gb, pc + 1)
+                add_instr(&mut gb, num)
+                pc = pc + 2
+                counter = counter + 8
+            }
+            $06: {
+                // LD B, n
+                val :: read_gb_byte(&gb, pc + 1)
+                gb.b = val
+                pc = pc + 2
+                counter = counter + 8
+            }
+            $0E: {
+                // LD C, n
+                val :: read_gb_byte(&gb, pc + 1)
+                gb.c = val
+                pc = pc + 2
+                counter = counter + 8
+            }
+            $16: {
+                // LD D, n
+                val :: read_gb_byte(&gb, pc + 1)
+                gb.d = val
+                pc = pc + 2
+                counter = counter + 8
+            }
+            $1E: {
+                // LD E, n
+                val :: read_gb_byte(&gb, pc + 1)
+                gb.e = val
+                pc = pc + 2
+                counter = counter + 8
+            }
+            $26: {
+                // LD H, n
+                val :: read_gb_byte(&gb, pc + 1)
+                gb.h = val
+                pc = pc + 2
+                counter = counter + 8
+            }
+            $2E: {
+                // LD L, n
+                val :: read_gb_byte(&gb, pc + 1)
+                gb.l = val
+                pc = pc + 2
+                counter = counter + 8
+            }
+            $7F: {
+                // LD A, A
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $78: {
+                // LD A, B
+                gb.a = gb.b
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $79: {
+                // LD A, C
+                gb.a = gb.c
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $7A: {
+                // LD A, D
+                gb.a = gb.d
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $7B: {
+                // LD A, E
+                gb.a = gb.e
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $7C: {
+                // LD A, H
+                gb.a = gb.h
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $7D: {
+                // LD A, L
+                gb.a = gb.l
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $0A: {
+                // LD A, (BC)
+                gb.a = read_gb_byte(&gb, get_bc(&gb))
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $47: {
+                // LD B, A
+                gb.b = gb.a
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $4F: {
+                // LD C, A
+                gb.c = gb.a
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $57: {
+                // LD D, A
+                gb.d = gb.a
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $5F: {
+                // LD E, A
+                gb.e = gb.a
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $67: {
+                // LD H, A
+                gb.h = gb.a
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $6F: {
+                // LD L, A
+                gb.l = gb.a
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $02: {
+                // LD (BC), A
+                write_gb_byte(&mut gb, get_bc(&gb), gb.a)
+                pc = pc + 1
+                counter = counter + 8
+            }
+            $12: {
+                // LD (DE), A
+                write_gb_byte(&mut gb, get_de(&gb), gb.a)
+                pc = pc + 1
+                counter = counter + 8
+            }
+            $77: {
+                // LD (HL), A
+                write_gb_byte(&mut gb, get_hl(&gb), gb.a)
+                pc = pc + 1
+                counter = counter + 8
+            }
+            $36: {
+                // LD (HL), n
+                val :: read_gb_byte(&gb, pc + 1)
+                write_gb_byte(&mut gb, get_hl(&gb), val)
+                pc = pc + 3
+                counter = counter + 12
+            }
+            $EA: {
+                // LD (nn), A
+                address :: read_gb_word(&gb, pc + 1)
+                write_gb_byte(&mut gb, address, gb.a)
+                pc = pc + 3
+                counter = counter + 16
+            }
+            $17: {
                 // RL A
                 rl_instr(&mut gb, &mut gb.a)
 
                 pc = pc + 1
-                counter = counter + 8
-            } else if opcode == $10 {
-                // RL B
-                rl_instr(&mut gb, &mut gb.b)
+                counter = counter + 4
+            }
+            $F3: {
+                // DI
+                // TODO: this cast shouldn't be necessary
+                interrupt_action = -(2 as i8)
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $FB: {
+                // EI
+                interrupt_action = 2
+                pc = pc + 1
+                counter = counter + 4
+            }
+            $CB: {
+                // Extended opcodes
+                pc = pc + 1
+                opcode :: read_gb_byte(&gb, pc)
+                switch opcode {
+                    $17: {
+                        // RL A
+                        rl_instr(&mut gb, &mut gb.a)
 
-                pc = pc + 1
-                counter = counter + 8
-            } else if opcode == $11 {
-                // RL C
-                rl_instr(&mut gb, &mut gb.c)
+                        pc = pc + 1
+                        counter = counter + 8
+                    }
+                    $10: {
+                        // RL B
+                        rl_instr(&mut gb, &mut gb.b)
 
-                pc = pc + 1
-                counter = counter + 8
-            } else if opcode == $12 {
-                // RL D
-                rl_instr(&mut gb, &mut gb.d)
+                        pc = pc + 1
+                        counter = counter + 8
+                    }
+                    $11: {
+                        // RL C
+                        rl_instr(&mut gb, &mut gb.c)
 
-                pc = pc + 1
-                counter = counter + 8
-            } else if opcode == $13 {
-                // RL E
-                rl_instr(&mut gb, &mut gb.e)
+                        pc = pc + 1
+                        counter = counter + 8
+                    }
+                    $12: {
+                        // RL D
+                        rl_instr(&mut gb, &mut gb.d)
 
-                pc = pc + 1
-                counter = counter + 8
-            } else if opcode == $14 {
-                // RL H
-                rl_instr(&mut gb, &mut gb.h)
+                        pc = pc + 1
+                        counter = counter + 8
+                    }
+                    $13: {
+                        // RL E
+                        rl_instr(&mut gb, &mut gb.e)
 
-                pc = pc + 1
-                counter = counter + 8
-            } else if opcode == $15 {
-                // RL L
-                rl_instr(&mut gb, &mut gb.l)
+                        pc = pc + 1
+                        counter = counter + 8
+                    }
+                    $14: {
+                        // RL H
+                        rl_instr(&mut gb, &mut gb.h)
 
-                pc = pc + 1
-                counter = counter + 8
-            } else if opcode == $16 {
-                // RL (HL)
-                val := read_gb_byte(&gb, get_hl(&gb))
-                rl_instr(&mut gb, &mut val)
-                write_gb_byte(&mut gb, get_hl(&gb), val)
+                        pc = pc + 1
+                        counter = counter + 8
+                    }
+                    $15: {
+                        // RL L
+                        rl_instr(&mut gb, &mut gb.l)
 
-                pc = pc + 1
-                counter = counter + 16
-            } else if (opcode & ~$38) == $44 {
-                // BIT b, H
-                b :: opcode >> 4 & 7
-                // TODO: change precedence of equality operator so this isn't required
-                gb.z_flag = (gb.h & (1 << b)) == 0
-                gb.n_flag = false
-                gb.h_flag = true
-                pc = pc + 1
-                counter = counter + 8
-            } else {
-                print("unrecognized extended opcode ")
+                        pc = pc + 1
+                        counter = counter + 8
+                    }
+                    $16: {
+                        // RL (HL)
+                        val := read_gb_byte(&gb, get_hl(&gb))
+                        rl_instr(&mut gb, &mut val)
+                        write_gb_byte(&mut gb, get_hl(&gb), val)
+
+                        pc = pc + 1
+                        counter = counter + 16
+                    }
+                    _: if (opcode & ~$38) == $44 {
+                        // BIT b, H
+                        b :: opcode >> 4 & 7
+                        // TODO: change precedence of equality operator so this isn't required
+                        gb.z_flag = (gb.h & (1 << b)) == 0
+                        gb.n_flag = false
+                        gb.h_flag = true
+                        pc = pc + 1
+                        counter = counter + 8
+                    } else {
+                        print("unrecognized extended opcode ")
+                        print_byte(opcode)
+                        print(" at address ")
+                        print_word(pc as u16)
+                        print("\n")
+                        panic()
+                    }
+                }
+            }
+            _: {
+                print("unrecognized opcode ")
                 print_byte(opcode)
                 print(" at address ")
                 print_word(pc as u16)
                 print("\n")
+
                 panic()
             }
-        } else {
-            print("unrecognized opcode ")
-            print_byte(opcode)
-            print(" at address ")
-            print_word(pc as u16)
-            print("\n")
-
-            panic()
         }
     }
 
