@@ -936,27 +936,29 @@ GameBoy :: struct {
     game: ByteSlice
 }
 
-fn new_gameboy(bootrom: ByteSlice, game: ByteSlice) = GameBoy {
-    a: 0
-    b: 0
-    c: 0
-    d: 0
-    e: 0
-    f: 0
-    h: 0
-    l: 0
+fn new_gameboy(bootrom: ByteSlice, game: ByteSlice): GameBoy {
+    GameBoy {
+        a: 0
+        b: 0
+        c: 0
+        d: 0
+        e: 0
+        f: 0
+        h: 0
+        l: 0
 
-    z_flag: false
-    n_flag: false
-    h_flag: false
-    c_flag: false
-    bootrom_enabled: true
+        z_flag: false
+        n_flag: false
+        h_flag: false
+        c_flag: false
+        bootrom_enabled: true
 
-    ly: 0
+        ly: 0
 
-    memory: new_slice(65536)
-    bootrom: bootrom
-    game: game
+        memory: new_slice(65536)
+        bootrom: bootrom
+        game: game
+    }
 }
 
 fn free_gameboy(gameboy: GameBoy *mut) {
@@ -1128,16 +1130,17 @@ ByteSlice :: struct {
     data: u8 *mut
 }
 
-// COMPILER BUG: other code breaks if I remove this explicit type
-fn new_slice(size: usize): ByteSlice = ByteSlice {
-    size: size
-    data: malloc(size) as u8 *mut
+fn new_slice(size: usize): ByteSlice {
+    ByteSlice {
+        size: size
+        data: malloc(size) as u8 *mut
+    }
 }
 
 fn read_file(path: i8*): ByteSlice {
     file :: kernel32.CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, 0 as usize as SECURITY_ATTRIBUTES *mut, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0 as usize as HANDLE)
     invalid :: -1 as isize as usize as HANDLE
-    if file as usize == INVALID_HANDLE_VALUE() as usize {
+    if file as usize == _debug_mark(INVALID_HANDLE_VALUE()) as usize {
         panic("unable to open file")
     }
 
@@ -1237,7 +1240,9 @@ HANDLE :: void *mut
 MB_OK :: 0 as u32
 FILE_SHARE_READ :: 1 as DWORD
 
-fn INVALID_HANDLE_VALUE() = -1 as isize as usize as HANDLE
+fn INVALID_HANDLE_VALUE(): HANDLE {
+    -1 as isize as usize as HANDLE
+}
 DWORD :: u32
 STD_INPUT_HANDLE :: (-10) as i32 as DWORD
 STD_OUTPUT_HANDLE :: (-11) as i32 as DWORD
