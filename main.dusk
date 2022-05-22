@@ -962,9 +962,9 @@ fn new_gameboy(bootrom: ByteSlice, game: ByteSlice): GameBoy {
 }
 
 fn free_gameboy(gameboy: GameBoy *mut) {
-    free_slice(&mut (*gameboy).memory)
-    free_slice(&mut (*gameboy).bootrom)
-    free_slice(&mut (*gameboy).game)
+    free_slice(&mut gameboy.memory)
+    free_slice(&mut gameboy.bootrom)
+    free_slice(&mut gameboy.game)
 }
 
 
@@ -972,16 +972,16 @@ LY_REGISTER   :: $FF44 as u16
 BOOT_REGISTER :: $FF50 as u16
 
 fn read_gb_byte(gb: GameBoy*, address: u16): u8 {
-    if address < $0100 && (*gb).bootrom_enabled {
-        read_byte((*gb).bootrom, address)
+    if address < $0100 && gb.bootrom_enabled {
+        read_byte(gb.bootrom, address)
     } else if address < $8000 {
-        read_byte((*gb).game, address)
+        read_byte(gb.game, address)
     } else if address == BOOT_REGISTER {
-        $FE | if (*gb).bootrom_enabled { 0 } else { 1 }
+        $FE | if gb.bootrom_enabled { 0 } else { 1 }
     } else if address == LY_REGISTER {
-        (*gb).ly
+        gb.ly
     } else {
-        read_byte((*gb).memory, address)
+        read_byte(gb.memory, address)
     }
 }
 
@@ -993,15 +993,15 @@ fn read_gb_word(gb: GameBoy*, address: u16): u16 {
 }
 
 fn write_gb_byte(gb: GameBoy *mut, address: u16, value: u8) {
-    if address < $0100 && (*gb).bootrom_enabled {
+    if address < $0100 && gb.bootrom_enabled {
         panic("attempt made to write to bootrom")
     } else if address == BOOT_REGISTER {
         if (value & 1) == 1 {
-            (*gb).bootrom_enabled = false
+            gb.bootrom_enabled = false
             print("Disabled bootrom!\n")
         }
     } else {
-        write_byte((*gb).memory, address, value)
+        write_byte(gb.memory, address, value)
     }
 }
 
@@ -1013,111 +1013,110 @@ fn write_gb_word(gb: GameBoy *mut, address: u16, value: u16) {
 }
 
 fn get_flags(gb: GameBoy*): u8 {
-    if (*gb).z_flag { Z_FLAG } else { 0 } |
-        if (*gb).n_flag { N_FLAG } else { 0 } |
-        if (*gb).h_flag { H_FLAG } else { 0 } |
-        if (*gb).c_flag { C_FLAG } else { 0 }
+    if gb.z_flag { Z_FLAG } else { 0 } |
+        if gb.n_flag { N_FLAG } else { 0 } |
+        if gb.h_flag { H_FLAG } else { 0 } |
+        if gb.c_flag { C_FLAG } else { 0 }
 }
 
 fn set_flags(gb: GameBoy *mut, val: u8) {
-    (*gb).z_flag = (val & Z_FLAG) != 0
-    (*gb).n_flag = (val & N_FLAG) != 0
-    (*gb).h_flag = (val & H_FLAG) != 0
-    (*gb).c_flag = (val & C_FLAG) != 0
+    gb.z_flag = (val & Z_FLAG) != 0
+    gb.n_flag = (val & N_FLAG) != 0
+    gb.h_flag = (val & H_FLAG) != 0
+    gb.c_flag = (val & C_FLAG) != 0
 }
 
 fn get_af(gb: GameBoy*): u16 {
-    (*gb).a as u16 << 8 | get_flags(gb) as u16
+    gb.a as u16 << 8 | get_flags(gb) as u16
 }
 
 fn set_af(gb: GameBoy *mut, val: u16) {
-    (*gb).a = ((val & $FF00) >> 8) as u8
+    gb.a = ((val & $FF00) >> 8) as u8
     set_flags(gb, val as u8)
 }
 
 fn get_bc(gb: GameBoy*): u16 {
-    (*gb).b as u16 << 8 | (*gb).c as u16
+    gb.b as u16 << 8 | gb.c as u16
 }
 
 fn set_bc(gb: GameBoy *mut, val: u16) {
-    (*gb).b = (((val & $FF00) >> 8) as u8)
-    (*gb).c = val as u8
+    gb.b = (((val & $FF00) >> 8) as u8)
+    gb.c = val as u8
 }
 
 fn get_de(gb: GameBoy*): u16 {
-    (*gb).d as u16 << 8 | (*gb).e as u16
+    gb.d as u16 << 8 | gb.e as u16
 }
 
 fn set_de(gb: GameBoy *mut, val: u16) {
-    (*gb).d = (((val & $FF00) >> 8) as u8)
-    (*gb).e = val as u8
+    gb.d = (((val & $FF00) >> 8) as u8)
+    gb.e = val as u8
 }
 
 fn get_hl(gb: GameBoy*): u16 {
-    (*gb).h as u16 << 8 | (*gb).l as u16
+    gb.h as u16 << 8 | gb.l as u16
 }
 
 fn set_hl(gb: GameBoy *mut, val: u16) {
-    (*gb).h = (((val & $FF00) >> 8) as u8)
-    (*gb).l = val as u8
+    gb.h = (((val & $FF00) >> 8) as u8)
+    gb.l = val as u8
 }
 
 
 fn rl_instr(gb: GameBoy *mut, register: u8 *mut) {
     bit7 :: (*register & $80) != 0
-    carry :: (*gb).c_flag
+    carry :: gb.c_flag
     *register = *register << 1
     if carry {
         *register = *register | 1
     }
-    // TODO: fix this issue with parsing!
-    ((*gb).c_flag = bit7)
+    gb.c_flag = bit7
 
-    (*gb).z_flag = *register == 0
-    ((*gb).n_flag = false)
-    (*gb).h_flag = false
+    gb.z_flag = *register == 0
+    gb.n_flag = false
+    gb.h_flag = false
 }
 
 fn dec_instr(gb: GameBoy *mut, register: u8 *mut) {
-    (*gb).h_flag = ((*register & $0F) - 1) <= $0F // TODO: Not sure if correct!
+    gb.h_flag = ((*register & $0F) - 1) <= $0F // TODO: Not sure if correct!
 
     *register = *register - 1
-    (*gb).z_flag = *register == 0
-    (*gb).n_flag = true
+    gb.z_flag = *register == 0
+    gb.n_flag = true
 }
 
 fn sub_instr(gb: GameBoy *mut, register: u8) {
     cp_instr(gb, register) // same flags
-    (*gb).a = (*gb).a - register
+    gb.a = gb.a - register
 }
 
 fn cp_instr(gb: GameBoy *mut, register: u8) {
-    a :: ((*gb).a)
-    (*gb).h_flag = ((a & $0F) - register) <= $0F // TODO: Not sure if correct!
+    a :: (gb.a)
+    gb.h_flag = ((a & $0F) - register) <= $0F // TODO: Not sure if correct!
 
-    ((*gb).z_flag = a == register)
-    ((*gb).n_flag = true)
-    (*gb).c_flag = a < register
+    gb.z_flag = a == register
+    gb.n_flag = true
+    gb.c_flag = a < register
 }
 
 fn inc_instr(gb: GameBoy *mut, register: u8 *mut) {
-    (*gb).h_flag = ((*register & $0F) + 1) > $0F // TODO: Not sure if correct!
+    gb.h_flag = ((*register & $0F) + 1) > $0F // TODO: Not sure if correct!
 
     *register = *register + 1
 
-    (*gb).z_flag = *register == 0
-    (*gb).n_flag = false
+    gb.z_flag = *register == 0
+    gb.n_flag = false
 }
 
 fn add_instr(gb: GameBoy *mut, register: u8) {
     // TODO: kind of expensive to compute three additions here, should come up with something better
-    (*gb).h_flag = (((*gb).a & $0F) + register & $0F) > $0F // TODO: Not sure if correct!
-    (*gb).c_flag = (((*gb).a as u16) + (register as u16)) > $FF // TODO: Not sure if correct!
+    gb.h_flag = ((gb.a & $0F) + register & $0F) > $0F // TODO: Not sure if correct!
+    gb.c_flag = ((gb.a as u16) + (register as u16)) > $FF // TODO: Not sure if correct!
 
-    ((*gb).a = (*gb).a + register)
+    gb.a = gb.a + register
 
-    (*gb).z_flag = (*gb).a == 0
-    (*gb).n_flag = false
+    gb.z_flag = gb.a == 0
+    gb.n_flag = false
 }
 
 
@@ -1180,9 +1179,9 @@ fn read_byte(slice: ByteSlice, index: u16): u8 {
 }
 
 fn free_slice(slice: ByteSlice *mut) {
-    free((*slice).data as void *mut)
-    (*slice).data = 0 as usize as u8 *mut
-    (*slice).size = 0
+    free(slice.data as void *mut)
+    slice.data = 0 as usize as u8 *mut
+    slice.size = 0
 }
 
 fn print_num(num: i64) {
