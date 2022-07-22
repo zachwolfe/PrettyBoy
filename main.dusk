@@ -1152,15 +1152,13 @@ fn read_file(path: i8*): ByteSlice {
     size :: size as usize
     buf :: malloc(size)
 
-    i := 0 as usize
-    while i < size {
+    for i in 0..size {
         bytes_to_read :: (size - i) as DWORD
         bytes_read := 0 as DWORD
         succ :: kernel32.ReadFile(file, (buf as usize + i) as void *mut, bytes_to_read, &mut bytes_read, 0 as usize as OVERLAPPED *mut)
         if succ == FALSE {
             panic("unable to read from file")
         }
-        i += bytes_read as usize
     }
     ignore :: kernel32.CloseHandle(file)
 
