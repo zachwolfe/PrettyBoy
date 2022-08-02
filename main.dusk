@@ -54,7 +54,7 @@ fn main() {
         }
 
         if gb.ly >= LINES_PER_FRAME {
-            gb.ly = gb.ly - LINES_PER_FRAME
+            gb.ly -= LINES_PER_FRAME
             time: u64 = 0
             if kernel32.QueryPerformanceCounter(&mut time) == FALSE {
                 panic("unable to get performance counter")
@@ -1152,15 +1152,20 @@ fn read_file(path: i8*): ByteSlice {
     size :: size as usize
     buf :: malloc(size)
 
-    for i in 0..size {
+    i: usize = 0
+    // TODO: make this a for loop once I fix the infinite loop issue in the compiler...
+    while i < size {
+    // for i in 0..size {
         bytes_to_read :: (size - i) as DWORD
         bytes_read := 0 as DWORD
         succ :: kernel32.ReadFile(file, (buf as usize + i) as void *mut, bytes_to_read, &mut bytes_read, 0 as usize as OVERLAPPED *mut)
         if succ == FALSE {
             panic("unable to read from file")
         }
+
+        i += 1
     }
-    ignore :: kernel32.CloseHandle(file)
+    kernel32.CloseHandle(file);
 
     ByteSlice {
         size: size
